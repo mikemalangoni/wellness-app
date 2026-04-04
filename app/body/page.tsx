@@ -377,8 +377,8 @@ export default function BodyPage() {
                       <Tooltip
                         content={<DarkTooltip />}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any, name: string) =>
-                          name.toLowerCase().includes("pace") ? formatPace(v as number) : v
+                        formatter={(v: any, name: any) =>
+                          typeof name === "string" && name.toLowerCase().includes("pace") ? formatPace(v as number) : v
                         }
                       />
                       <Line dataKey="Pace" stroke={Y} strokeWidth={1.5} dot={{ r: 3, fill: Y }} connectNulls />
