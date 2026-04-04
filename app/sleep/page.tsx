@@ -244,7 +244,7 @@ export default function SleepPage() {
                     stroke="hsl(var(--border))"
                   />
                   <YAxis
-                    domain={["auto", 10]}
+                    domain={["auto", "auto"]}
                     tick={{ fontSize: 11 }}
                     tickFormatter={(v) => `${v}h`}
                     stroke="hsl(var(--border))"
