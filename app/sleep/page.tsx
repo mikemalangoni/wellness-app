@@ -53,7 +53,8 @@ function rollingMean(values: (number | null)[], window = 7): (number | null)[] {
 }
 
 function fmt(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });

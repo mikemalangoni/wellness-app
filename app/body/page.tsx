@@ -91,7 +91,8 @@ function formatPace(minPerMile: number): string {
 }
 
 function fmt(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function DarkStatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
