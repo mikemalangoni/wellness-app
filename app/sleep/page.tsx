@@ -144,19 +144,17 @@ export default function SleepPage() {
   }));
 
   const stageData = entries.map((e) => {
-    const deep = e.deep_pct != null ? parseFloat((parseFloat(e.deep_pct) * 100).toFixed(1)) : null;
-    const rem = e.rem_pct != null ? parseFloat((parseFloat(e.rem_pct) * 100).toFixed(1)) : null;
-    const core = e.core_pct != null ? parseFloat((parseFloat(e.core_pct) * 100).toFixed(1)) : null;
-    const awake =
-      deep != null && rem != null && core != null
-        ? parseFloat((100 - deep - rem - core).toFixed(1))
+    const durationMin = e.sleep_duration ? parseFloat(e.sleep_duration) * 60 : null;
+    const awakePct =
+      e.awake_min != null && durationMin
+        ? parseFloat(((parseFloat(e.awake_min) / durationMin) * 100).toFixed(1))
         : null;
     return {
       date: fmt(e.date),
-      Deep: deep,
-      REM: rem,
-      Core: core,
-      Awake: awake,
+      Deep: e.deep_pct != null ? parseFloat((parseFloat(e.deep_pct) * 100).toFixed(1)) : null,
+      REM: e.rem_pct != null ? parseFloat((parseFloat(e.rem_pct) * 100).toFixed(1)) : null,
+      Core: e.core_pct != null ? parseFloat((parseFloat(e.core_pct) * 100).toFixed(1)) : null,
+      Awake: awakePct,
     };
   });
 
