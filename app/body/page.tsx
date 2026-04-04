@@ -143,7 +143,7 @@ function DarkLegend({ payload }: { payload?: any[] }) {
 }
 
 export default function BodyPage() {
-  const [range, setRange] = useState<RangeKey>("90d");
+  const [range, setRange] = useState<RangeKey>("30d");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sessions, setSessions] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
