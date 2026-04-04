@@ -1,65 +1,166 @@
-import Image from "next/image";
+import sql from "@/lib/db";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Moon, Waves, Brain, Dumbbell, Droplets } from "lucide-react";
 
-export default function Home() {
+async function getSummary() {
+  const [d7] = await sql`
+    SELECT
+      ROUND(AVG(mood)::numeric, 1)           AS avg_mood,
+      ROUND(AVG(focus)::numeric, 1)          AS avg_focus,
+      ROUND(AVG(sleep_duration)::numeric, 1) AS avg_sleep,
+      ROUND(AVG(hrv)::numeric, 0)            AS avg_hrv,
+      ROUND(AVG(avg_bristol)::numeric, 1)    AS avg_bristol,
+      ROUND(AVG(water_oz)::numeric, 0)       AS avg_water,
+      ROUND(AVG(bm_count)::numeric, 1)       AS avg_bm,
+      COUNT(*)                               AS days
+    FROM entries
+    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+  `;
+
+  const [d30] = await sql`
+    SELECT
+      ROUND(AVG(mood)::numeric, 1)           AS avg_mood,
+      ROUND(AVG(focus)::numeric, 1)          AS avg_focus,
+      ROUND(AVG(sleep_duration)::numeric, 1) AS avg_sleep,
+      ROUND(AVG(hrv)::numeric, 0)            AS avg_hrv,
+      ROUND(AVG(avg_bristol)::numeric, 1)    AS avg_bristol,
+      ROUND(AVG(water_oz)::numeric, 0)       AS avg_water,
+      ROUND(AVG(bm_count)::numeric, 1)       AS avg_bm,
+      COUNT(*)                               AS days
+    FROM entries
+    WHERE date >= CURRENT_DATE - INTERVAL '30 days'
+  `;
+
+  const [prev30] = await sql`
+    SELECT
+      ROUND(AVG(mood)::numeric, 1)           AS avg_mood,
+      ROUND(AVG(sleep_duration)::numeric, 1) AS avg_sleep,
+      ROUND(AVG(hrv)::numeric, 0)            AS avg_hrv
+    FROM entries
+    WHERE date >= CURRENT_DATE - INTERVAL '60 days'
+      AND date < CURRENT_DATE - INTERVAL '30 days'
+  `;
+
+  return { d7, d30, prev30 };
+}
+
+function trendDirection(
+  current: number | null,
+  previous: number | null,
+  higherIsBetter = true
+): "up" | "down" | null {
+  if (!current || !previous) return null;
+  const delta = current - previous;
+  if (Math.abs(delta) < 0.05) return null;
+  if (higherIsBetter) return delta > 0 ? "up" : "down";
+  return delta < 0 ? "up" : "down";
+}
+
+function TrendBadge({ direction }: { direction: "up" | "down" | null }) {
+  if (!direction) return null;
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
+    <span className={direction === "up" ? "text-green-500 text-xs" : "text-red-400 text-xs"}>
+      {direction === "up" ? "↑" : "↓"}
+    </span>
+  );
+}
+
+export default async function OverviewPage() {
+  const { d7, d30, prev30 } = await getSummary();
+
+  const cards = [
+    {
+      title: "Sleep",
+      value7: d7.avg_sleep ? `${d7.avg_sleep}h` : "—",
+      value30: d30.avg_sleep ? `${d30.avg_sleep}h` : "—",
+      direction: trendDirection(Number(d30.avg_sleep), Number(prev30.avg_sleep)),
+    },
+    {
+      title: "HRV",
+      value7: d7.avg_hrv ? `${d7.avg_hrv} ms` : "—",
+      value30: d30.avg_hrv ? `${d30.avg_hrv} ms` : "—",
+      direction: trendDirection(Number(d30.avg_hrv), Number(prev30.avg_hrv)),
+    },
+    {
+      title: "Mood",
+      value7: d7.avg_mood ? `${d7.avg_mood} / 5` : "—",
+      value30: d30.avg_mood ? `${d30.avg_mood} / 5` : "—",
+      direction: trendDirection(Number(d30.avg_mood), Number(prev30.avg_mood)),
+    },
+    {
+      title: "Bristol",
+      value7: d7.avg_bristol ? `${d7.avg_bristol}` : "—",
+      value30: d30.avg_bristol ? `${d30.avg_bristol}` : "—",
+      direction: null,
+    },
+    {
+      title: "BMs / day",
+      value7: d7.avg_bm ? `${d7.avg_bm}` : "—",
+      value30: d30.avg_bm ? `${d30.avg_bm}` : "—",
+      direction: null,
+    },
+    {
+      title: "Water",
+      value7: d7.avg_water ? `${d7.avg_water} oz` : "—",
+      value30: d30.avg_water ? `${d30.avg_water} oz` : "—",
+      direction: null,
+    },
+  ];
+
+  const sections = [
+    { href: "/sleep", icon: Moon, label: "Sleep", desc: "Duration, stages, HRV, consistency" },
+    { href: "/gut", icon: Waves, label: "Gut", desc: "Bristol, frequency, urgency patterns" },
+    { href: "/mind", icon: Brain, label: "Mind", desc: "Mood, focus, correlations" },
+    { href: "/body", icon: Dumbbell, label: "Body", desc: "Exercise, activity, running" },
+  ];
+
+  return (
+    <div className="max-w-4xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Overview</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {d30.days} entries in the last 30 days
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {cards.map((card) => (
+          <Card key={card.title}>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center justify-between">
+                {card.title}
+                <TrendBadge direction={card.direction} />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-2">
+              <div>
+                <p className="text-2xl font-semibold">{card.value7}</p>
+                <p className="text-xs text-muted-foreground">7-day avg</p>
+              </div>
+              <div className="border-t pt-2">
+                <p className="text-sm font-medium text-muted-foreground">{card.value30}</p>
+                <p className="text-xs text-muted-foreground">30-day avg</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {sections.map(({ href, icon: Icon, label, desc }) => (
           <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            key={href}
+            href={href}
+            className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
+            <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+            <div>
+              <p className="text-sm font-medium">{label}</p>
+              <p className="text-xs text-muted-foreground">{desc}</p>
+            </div>
           </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        ))}
+      </div>
     </div>
   );
 }
