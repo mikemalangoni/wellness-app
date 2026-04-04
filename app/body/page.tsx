@@ -91,7 +91,7 @@ function formatPace(minPerMile: number): string {
 }
 
 function fmt(dateStr: string) {
-  const [y, m, d] = dateStr.split("-").map(Number);
+  const [y, m, d] = String(dateStr).slice(0, 10).split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
