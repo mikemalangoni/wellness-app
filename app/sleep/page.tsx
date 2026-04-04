@@ -144,17 +144,19 @@ export default function SleepPage() {
   }));
 
   const stageData = entries.map((e) => {
-    const durationMin = e.sleep_duration ? parseFloat(e.sleep_duration) * 60 : null;
-    const awakePct =
-      e.awake_min != null && durationMin
-        ? parseFloat(((parseFloat(e.awake_min) / durationMin) * 100).toFixed(1))
+    const deep = e.deep_pct != null ? parseFloat((parseFloat(e.deep_pct) * 100).toFixed(1)) : null;
+    const rem = e.rem_pct != null ? parseFloat((parseFloat(e.rem_pct) * 100).toFixed(1)) : null;
+    const core = e.core_pct != null ? parseFloat((parseFloat(e.core_pct) * 100).toFixed(1)) : null;
+    const awake =
+      deep != null && rem != null && core != null
+        ? parseFloat((100 - deep - rem - core).toFixed(1))
         : null;
     return {
       date: fmt(e.date),
-      Deep: e.deep_pct != null ? parseFloat((parseFloat(e.deep_pct) * 100).toFixed(1)) : null,
-      REM: e.rem_pct != null ? parseFloat((parseFloat(e.rem_pct) * 100).toFixed(1)) : null,
-      Core: e.core_pct != null ? parseFloat((parseFloat(e.core_pct) * 100).toFixed(1)) : null,
-      Awake: awakePct,
+      Deep: deep,
+      REM: rem,
+      Core: core,
+      Awake: awake,
     };
   });
 
@@ -312,7 +314,7 @@ export default function SleepPage() {
               <CardTitle className="text-sm font-medium">Sleep Stage Breakdown</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={180}>
+              <ResponsiveContainer width="100%" height={260}>
                 <ComposedChart data={stageData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
@@ -328,10 +330,10 @@ export default function SleepPage() {
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="Deep" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="REM" stackId="a" fill="#8b5cf6" />
-                  <Bar dataKey="Core" stackId="a" fill="#a78bfa" />
-                  <Bar dataKey="Awake" stackId="a" fill="#94a3b8" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="Deep" stackId="a" fill="#4f2d7f" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="Core" stackId="a" fill="#1e6fff" />
+                  <Bar dataKey="REM" stackId="a" fill="#00c8c8" />
+                  <Bar dataKey="Awake" stackId="a" fill="#ffb347" radius={[2, 2, 0, 0]} />
                 </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
