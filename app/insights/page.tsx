@@ -13,17 +13,17 @@ interface Report {
 
 async function getReport(date?: string): Promise<{ report: Report | null; dates: string[] }> {
   const history = await sql`
-    SELECT report_date FROM reports ORDER BY report_date DESC LIMIT 12
+    SELECT report_date::text FROM reports ORDER BY report_date DESC LIMIT 12
   `;
-  const dates = history.map((r) => String(r.report_date).split("T")[0]);
+  const dates = history.map((r) => r.report_date as string);
 
   if (dates.length === 0) return { report: null, dates: [] };
 
   const target = date ?? dates[0];
   const [report] = await sql`
-    SELECT report_date, period_start, period_end, content, generated_at
+    SELECT report_date::text, period_start::text, period_end::text, content, generated_at::text
     FROM reports
-    WHERE report_date = ${target}
+    WHERE report_date = ${target}::date
   `;
 
   return { report: (report as Report) ?? null, dates };
@@ -52,15 +52,15 @@ export default async function InsightsPage({ searchParams }: PageProps) {
           <h1 className="text-2xl font-semibold">Insights</h1>
           {report && (
             <p className="text-sm text-muted-foreground mt-1">
-              {formatDate(String(report.period_start).split("T")[0])} –{" "}
-              {formatDate(String(report.period_end).split("T")[0])}
+              {formatDate(report.period_start)} –{" "}
+              {formatDate(report.period_end)}
             </p>
           )}
         </div>
         {dates.length > 1 && report && (
           <ReportSelector
             dates={dates}
-            selected={String(report.report_date).split("T")[0]}
+            selected={report.report_date}
           />
         )}
       </div>
