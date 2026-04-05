@@ -122,7 +122,7 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-function CorrelationCard({ label, r }: { label: string; r: number | null }) {
+function CorrelationCard({ label, r, meaning }: { label: string; r: number | null; meaning?: string }) {
   if (r === null) {
     return (
       <div className="flex items-center justify-between rounded-lg border px-4 py-3">
@@ -132,16 +132,51 @@ function CorrelationCard({ label, r }: { label: string; r: number | null }) {
     );
   }
   return (
-    <div className="flex items-center justify-between rounded-lg border px-4 py-3">
-      <span className="text-sm">{label}</span>
-      <div className="text-right">
-        <span className={`text-sm font-semibold ${correlationColor(r)}`}>
-          {r > 0 ? "+" : ""}{r.toFixed(2)}
-        </span>
-        <p className={`text-xs ${correlationColor(r)}`}>{correlationLabel(r)}</p>
+    <div className="rounded-lg border px-4 py-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm">{label}</span>
+        <div className="text-right ml-4 shrink-0">
+          <span className={`text-sm font-semibold ${correlationColor(r)}`}>
+            {r > 0 ? "+" : ""}{r.toFixed(2)}
+          </span>
+          <p className={`text-xs ${correlationColor(r)}`}>{correlationLabel(r)}</p>
+        </div>
       </div>
+      {meaning && (
+        <p className="text-xs text-muted-foreground mt-1.5">{meaning}</p>
+      )}
     </div>
   );
+}
+
+const GUT_MEANINGS: Record<string, { positive: string; negative: string; negligible: string }> = {
+  "Exercise → Bristol score": {
+    positive: "Exercise days tend to produce better-formed stools. Movement stimulates gut motility.",
+    negative: "Higher-intensity exercise days coincide with looser stools — possibly from blood flow shunting away from the gut.",
+    negligible: "Exercise doesn't appear to meaningfully affect stool consistency in your data.",
+  },
+  "Exercise → BM frequency": {
+    positive: "You tend to go more often on days you exercise. Movement speeds up gut transit.",
+    negative: "Exercise days coincide with fewer BMs — possibly timing or dehydration effects.",
+    negligible: "Exercise doesn't appear to affect how often you go.",
+  },
+  "Water intake → Bristol score": {
+    positive: "Higher water intake associates with better stool consistency. Hydration helps form well-shaped stools.",
+    negative: "Oddly, more water coincides with looser stools in your data — worth checking if high-water days overlap with other factors.",
+    negligible: "Water intake doesn't show a consistent effect on stool consistency.",
+  },
+  "Water intake → BM frequency": {
+    positive: "More water tends to mean more frequent BMs. Adequate hydration keeps transit moving.",
+    negative: "Higher water intake coincides with fewer BMs in your data — likely a confounding factor rather than a direct effect.",
+    negligible: "Water intake doesn't appear to affect BM frequency.",
+  },
+};
+
+function gutMeaning(label: string, r: number): string | undefined {
+  const m = GUT_MEANINGS[label];
+  if (!m) return undefined;
+  if (Math.abs(r) < 0.15) return m.negligible;
+  return r > 0 ? m.positive : m.negative;
 }
 
 const AXIS_TICK = { fontSize: 11, fill: "#374151" };
@@ -293,13 +328,13 @@ export default function GutPage() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Exercise</p>
-                <CorrelationCard label="Exercise → Bristol score" r={exBristol} />
-                <CorrelationCard label="Exercise → BM frequency" r={exBm} />
+                <CorrelationCard label="Exercise → Bristol score" r={exBristol} meaning={exBristol !== null ? gutMeaning("Exercise → Bristol score", exBristol) : undefined} />
+                <CorrelationCard label="Exercise → BM frequency" r={exBm} meaning={exBm !== null ? gutMeaning("Exercise → BM frequency", exBm) : undefined} />
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Water</p>
-                <CorrelationCard label="Water intake → Bristol score" r={waterBristol} />
-                <CorrelationCard label="Water intake → BM frequency" r={waterBm} />
+                <CorrelationCard label="Water intake → Bristol score" r={waterBristol} meaning={waterBristol !== null ? gutMeaning("Water intake → Bristol score", waterBristol) : undefined} />
+                <CorrelationCard label="Water intake → BM frequency" r={waterBm} meaning={waterBm !== null ? gutMeaning("Water intake → BM frequency", waterBm) : undefined} />
               </div>
             </div>
           </div>

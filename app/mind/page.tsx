@@ -120,13 +120,7 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-function CorrelationCard({
-  label,
-  r,
-}: {
-  label: string;
-  r: number | null;
-}) {
+function CorrelationCard({ label, r, meaning }: { label: string; r: number | null; meaning?: string }) {
   if (r === null) {
     return (
       <div className="flex items-center justify-between rounded-lg border px-4 py-3">
@@ -136,16 +130,61 @@ function CorrelationCard({
     );
   }
   return (
-    <div className="flex items-center justify-between rounded-lg border px-4 py-3">
-      <span className="text-sm">{label}</span>
-      <div className="text-right">
-        <span className={`text-sm font-semibold ${correlationColor(r)}`}>
-          {r > 0 ? "+" : ""}{r.toFixed(2)}
-        </span>
-        <p className={`text-xs ${correlationColor(r)}`}>{correlationLabel(r)}</p>
+    <div className="rounded-lg border px-4 py-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm">{label}</span>
+        <div className="text-right ml-4 shrink-0">
+          <span className={`text-sm font-semibold ${correlationColor(r)}`}>
+            {r > 0 ? "+" : ""}{r.toFixed(2)}
+          </span>
+          <p className={`text-xs ${correlationColor(r)}`}>{correlationLabel(r)}</p>
+        </div>
       </div>
+      {meaning && (
+        <p className="text-xs text-muted-foreground mt-1.5">{meaning}</p>
+      )}
     </div>
   );
+}
+
+const MIND_MEANINGS: Record<string, { positive: string; negative: string; negligible: string }> = {
+  "Sleep duration → Mood": {
+    positive: "Longer sleep nights tend to produce better mood days. Your mood is sensitive to how much you slept.",
+    negative: "Longer sleep coincides with lower mood — possibly reflecting days when you slept more because you felt off.",
+    negligible: "Sleep duration doesn't show a consistent link to mood in your data.",
+  },
+  "HRV → Mood": {
+    positive: "Higher HRV mornings tend to correlate with better mood. Your nervous system recovery and emotional state move together.",
+    negative: "Higher HRV correlates with lower mood in your data — worth investigating whether specific contexts drive this.",
+    negligible: "HRV and mood don't show a consistent relationship in your data.",
+  },
+  "Exercise → Mood": {
+    positive: "Exercise days tend to be better mood days. Likely a mix of direct effect and the fact that you exercise when you feel good.",
+    negative: "Exercise days coincide with lower mood — could reflect hard training days or that you push through when stressed.",
+    negligible: "Exercise and mood don't show a consistent same-day relationship.",
+  },
+  "Sleep duration → Focus": {
+    positive: "More sleep tends to mean sharper focus. Cognitive performance is clearly sensitive to sleep in your data.",
+    negative: "Longer sleep correlates with lower focus — possibly reflecting days when oversleeping follows a rough night.",
+    negligible: "Sleep duration doesn't show a consistent link to focus in your data.",
+  },
+  "HRV → Focus": {
+    positive: "Higher HRV mornings tend to predict better focus. Autonomic recovery appears to affect cognitive performance.",
+    negative: "Higher HRV correlates with lower focus in your data — an unusual pattern worth watching.",
+    negligible: "HRV and focus don't show a consistent same-day relationship.",
+  },
+  "Exercise → Focus": {
+    positive: "Exercise days tend to be better focus days. Movement appears to support cognitive performance.",
+    negative: "Exercise days coincide with lower focus — possibly post-exertion fatigue showing up same day.",
+    negligible: "Exercise doesn't show a consistent same-day effect on focus.",
+  },
+};
+
+function mindMeaning(label: string, r: number): string | undefined {
+  const m = MIND_MEANINGS[label];
+  if (!m) return undefined;
+  if (Math.abs(r) < 0.15) return m.negligible;
+  return r > 0 ? m.positive : m.negative;
 }
 
 export default function MindPage() {
@@ -280,15 +319,15 @@ export default function MindPage() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Mood</p>
-                <CorrelationCard label="Sleep duration → Mood" r={moodSleep} />
-                <CorrelationCard label="HRV → Mood" r={moodHrv} />
-                <CorrelationCard label="Exercise → Mood" r={moodExercise} />
+                <CorrelationCard label="Sleep duration → Mood" r={moodSleep} meaning={moodSleep !== null ? mindMeaning("Sleep duration → Mood", moodSleep) : undefined} />
+                <CorrelationCard label="HRV → Mood" r={moodHrv} meaning={moodHrv !== null ? mindMeaning("HRV → Mood", moodHrv) : undefined} />
+                <CorrelationCard label="Exercise → Mood" r={moodExercise} meaning={moodExercise !== null ? mindMeaning("Exercise → Mood", moodExercise) : undefined} />
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Focus</p>
-                <CorrelationCard label="Sleep duration → Focus" r={focusSleep} />
-                <CorrelationCard label="HRV → Focus" r={focusHrv} />
-                <CorrelationCard label="Exercise → Focus" r={focusExercise} />
+                <CorrelationCard label="Sleep duration → Focus" r={focusSleep} meaning={focusSleep !== null ? mindMeaning("Sleep duration → Focus", focusSleep) : undefined} />
+                <CorrelationCard label="HRV → Focus" r={focusHrv} meaning={focusHrv !== null ? mindMeaning("HRV → Focus", focusHrv) : undefined} />
+                <CorrelationCard label="Exercise → Focus" r={focusExercise} meaning={focusExercise !== null ? mindMeaning("Exercise → Focus", focusExercise) : undefined} />
               </div>
             </div>
           </div>
