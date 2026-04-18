@@ -1,0 +1,468 @@
+"use client";
+
+import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { saveLog, type GIEventInput, type ExerciseInput, type LogInput } from "./actions";
+
+const ACTIVITY_TYPES = ["Run", "Walk", "Strength", "Cycling", "Yoga", "Swimming", "Movement", "Other"];
+const BRISTOL_LABELS: Record<number, string> = {
+  1: "1 – Hard lumps",
+  2: "2 – Lumpy",
+  3: "3 – Cracked",
+  4: "4 – Smooth",
+  5: "5 – Soft",
+  6: "6 – Mushy",
+  7: "7 – Liquid",
+};
+
+function RatingInput({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={`h-9 w-9 rounded-md border text-sm font-medium transition-colors ${
+            value === n
+              ? "border-foreground bg-foreground text-background"
+              : "border-border hover:border-foreground/50"
+          }`}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function num(v: string): number | null {
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+function int(v: string): number | null {
+  const n = parseInt(v, 10);
+  return isNaN(n) ? null : n;
+}
+
+function today(): string {
+  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+}
+
+export type InitialData = Partial<LogInput> & {
+  gi_events?: GIEventInput[];
+  exercise_sessions?: ExerciseInput[];
+};
+
+export function LogForm({ initial }: { initial: InitialData }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  // Core fields
+  const [date, setDate] = useState(initial.date ?? today());
+  const [sleepDuration, setSleepDuration] = useState(initial.sleep_duration?.toString() ?? "");
+  const [bedTime, setBedTime] = useState(initial.bed_time ?? "");
+  const [wakeTime, setWakeTime] = useState(initial.wake_time ?? "");
+  const [hrv, setHrv] = useState(initial.hrv?.toString() ?? "");
+  const [deepMin, setDeepMin] = useState(initial.deep_min?.toString() ?? "");
+  const [coreMin, setCoreMin] = useState(initial.core_min?.toString() ?? "");
+  const [remMin, setRemMin] = useState(initial.rem_min?.toString() ?? "");
+  const [awakeMin, setAwakeMin] = useState(initial.awake_min?.toString() ?? "");
+  const [mood, setMood] = useState<number | null>(initial.mood ?? null);
+  const [focus, setFocus] = useState<number | null>(initial.focus ?? null);
+  const [waterOz, setWaterOz] = useState(initial.water_oz?.toString() ?? "");
+  const [alcoholCount, setAlcoholCount] = useState(initial.alcohol_count?.toString() ?? "");
+  const [alcoholDesc, setAlcoholDesc] = useState(initial.alcohol_desc ?? "");
+  const [restDay, setRestDay] = useState(initial.rest_day ?? false);
+
+  const [giEvents, setGiEvents] = useState<GIEventInput[]>(
+    initial.gi_events?.length ? initial.gi_events : []
+  );
+  const [exercises, setExercises] = useState<ExerciseInput[]>(
+    initial.exercise_sessions?.length ? initial.exercise_sessions : []
+  );
+
+  function addGI() {
+    setGiEvents((prev) => [...prev, { event_time: "", bristol: 0, urgency: "" }]);
+  }
+
+  function updateGI(i: number, patch: Partial<GIEventInput>) {
+    setGiEvents((prev) => prev.map((ev, idx) => (idx === i ? { ...ev, ...patch } : ev)));
+  }
+
+  function removeGI(i: number) {
+    setGiEvents((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function addExercise() {
+    setExercises((prev) => [
+      ...prev,
+      { activity_type: "Run", duration_min: null, hr_avg: null, effort: null, distance_mi: null },
+    ]);
+  }
+
+  function updateEx(i: number, patch: Partial<ExerciseInput>) {
+    setExercises((prev) => prev.map((ex, idx) => (idx === i ? { ...ex, ...patch } : ex)));
+  }
+
+  function removeEx(i: number) {
+    setExercises((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function handleSubmit() {
+    const input: LogInput = {
+      date,
+      sleep_duration: num(sleepDuration),
+      bed_time: bedTime,
+      wake_time: wakeTime,
+      hrv: num(hrv),
+      deep_min: num(deepMin),
+      core_min: num(coreMin),
+      rem_min: num(remMin),
+      awake_min: num(awakeMin),
+      mood,
+      focus,
+      water_oz: num(waterOz),
+      alcohol_count: int(alcoholCount),
+      alcohol_desc: alcoholDesc,
+      gi_events: giEvents,
+      exercise_sessions: exercises,
+      rest_day: restDay,
+    };
+
+    setError(null);
+    setSaved(false);
+    startTransition(async () => {
+      const result = await saveLog(input);
+      if (result.success) {
+        setSaved(true);
+        setTimeout(() => router.push("/"), 1000);
+      } else {
+        setError(result.error ?? "Save failed");
+      }
+    });
+  }
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Log Entry</h1>
+          <p className="text-sm text-muted-foreground mt-1">Record today's wellness data</p>
+        </div>
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-40"
+        />
+      </div>
+
+      {/* Sleep */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Sleep</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Duration (hrs)</label>
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                max="24"
+                placeholder="7.5"
+                value={sleepDuration}
+                onChange={(e) => setSleepDuration(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Bed time</label>
+              <Input type="time" value={bedTime} onChange={(e) => setBedTime(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Wake time</label>
+              <Input type="time" value={wakeTime} onChange={(e) => setWakeTime(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">HRV (ms)</label>
+            <Input
+              type="number"
+              placeholder="45"
+              value={hrv}
+              onChange={(e) => setHrv(e.target.value)}
+              className="w-32"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">
+              Sleep stages (minutes)
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: "Deep", value: deepMin, set: setDeepMin },
+                { label: "Core", value: coreMin, set: setCoreMin },
+                { label: "REM", value: remMin, set: setRemMin },
+                { label: "Awake", value: awakeMin, set: setAwakeMin },
+              ].map(({ label, value, set }) => (
+                <div key={label}>
+                  <label className="text-xs text-muted-foreground">{label}</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="—"
+                    value={value}
+                    onChange={(e) => set(e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Mood & Focus */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Mood &amp; Focus</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-2 block">Mood</label>
+            <RatingInput value={mood} onChange={setMood} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-2 block">Focus</label>
+            <RatingInput value={focus} onChange={setFocus} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Intake */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Intake</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground">Water (oz)</label>
+            <Input
+              type="number"
+              placeholder="80"
+              value={waterOz}
+              onChange={(e) => setWaterOz(e.target.value)}
+              className="w-32"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Alcohol (drinks)</label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={alcoholCount}
+                onChange={(e) => setAlcoholCount(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Description</label>
+              <Input
+                type="text"
+                placeholder="e.g. 2 beers"
+                value={alcoholDesc}
+                onChange={(e) => setAlcoholDesc(e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* GI */}
+      <Card>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-medium">GI Events</CardTitle>
+          <Button type="button" variant="outline" size="sm" onClick={addGI}>
+            <Plus className="h-3 w-3 mr-1" />
+            Add
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {giEvents.length === 0 && (
+            <p className="text-xs text-muted-foreground">No events logged</p>
+          )}
+          {giEvents.map((ev, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                type="time"
+                value={ev.event_time}
+                onChange={(e) => updateGI(i, { event_time: e.target.value })}
+                className="w-28"
+              />
+              <select
+                value={ev.bristol}
+                onChange={(e) => updateGI(i, { bristol: parseInt(e.target.value) })}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm flex-1"
+              >
+                <option value={0}>Bristol…</option>
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <option key={n} value={n}>
+                    {BRISTOL_LABELS[n]}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={ev.urgency}
+                onChange={(e) =>
+                  updateGI(i, { urgency: e.target.value as GIEventInput["urgency"] })
+                }
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm w-32"
+              >
+                <option value="">Urgency…</option>
+                <option value="low">Low</option>
+                <option value="moderate">Moderate</option>
+                <option value="high">High</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => removeGI(i)}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Exercise */}
+      <Card>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-medium">Exercise</CardTitle>
+          <Button type="button" variant="outline" size="sm" onClick={addExercise} disabled={restDay}>
+            <Plus className="h-3 w-3 mr-1" />
+            Add
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={restDay}
+              onChange={(e) => {
+                setRestDay(e.target.checked);
+                if (e.target.checked) setExercises([]);
+              }}
+              className="h-4 w-4"
+            />
+            Rest day
+          </label>
+          {!restDay && exercises.length === 0 && (
+            <p className="text-xs text-muted-foreground">No sessions logged</p>
+          )}
+          {exercises.map((ex, i) => (
+            <div key={i} className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center gap-2">
+                <select
+                  value={ex.activity_type}
+                  onChange={(e) => updateEx(i, { activity_type: e.target.value })}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm flex-1"
+                >
+                  {ACTIVITY_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removeEx(i)}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div>
+                  <label className="text-xs text-muted-foreground">Duration (min)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="45"
+                    value={ex.duration_min ?? ""}
+                    onChange={(e) => updateEx(i, { duration_min: int(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">HR avg (bpm)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="155"
+                    value={ex.hr_avg ?? ""}
+                    onChange={(e) => updateEx(i, { hr_avg: int(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Effort (1–10)</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="10"
+                    placeholder="6"
+                    value={ex.effort ?? ""}
+                    onChange={(e) => updateEx(i, { effort: int(e.target.value) })}
+                  />
+                </div>
+                {(ex.activity_type === "Run" || ex.activity_type === "Walk" || ex.activity_type === "Cycling") && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Distance (mi)</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="3.1"
+                      value={ex.distance_mi ?? ""}
+                      onChange={(e) => updateEx(i, { distance_mi: num(e.target.value) })}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {error && (
+        <p className="text-sm text-destructive rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2">
+          {error}
+        </p>
+      )}
+
+      {saved && (
+        <p className="text-sm text-green-600 rounded-md border border-green-500/50 bg-green-500/10 px-3 py-2">
+          Saved — redirecting…
+        </p>
+      )}
+
+      <Button onClick={handleSubmit} disabled={pending} className="w-full">
+        {pending ? "Saving…" : "Save entry"}
+      </Button>
+    </div>
+  );
+}

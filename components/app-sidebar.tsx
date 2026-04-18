@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Moon, Waves, Brain, Dumbbell, Sparkles } from "lucide-react";
+import { LayoutDashboard, Moon, Waves, Brain, Dumbbell, Sparkles, PenLine } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ const nav = [
   { label: "Mind", href: "/mind", icon: Brain },
   { label: "Body", href: "/body", icon: Dumbbell },
   { label: "Insights", href: "/insights", icon: Sparkles },
+  { label: "Log", href: "/log", icon: PenLine },
 ];
 
 export function AppSidebar() {
