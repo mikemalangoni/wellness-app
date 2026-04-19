@@ -1,6 +1,7 @@
+import Link from "next/link";
 import sql from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Moon, Waves, Brain, Dumbbell, Droplets } from "lucide-react";
+import { Moon, Waves, Brain, Dumbbell, Droplets, Sparkles } from "lucide-react";
 
 async function getSummary() {
   const [d7] = await sql`
@@ -44,6 +45,16 @@ async function getSummary() {
   return { d7, d30, prev30 };
 }
 
+async function getLatestReport(): Promise<{ content: string; period_start: string; period_end: string } | null> {
+  const rows = await sql`
+    SELECT content, period_start::text, period_end::text
+    FROM reports
+    ORDER BY report_date DESC
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
 function trendDirection(
   current: number | null,
   previous: number | null,
@@ -66,7 +77,7 @@ function TrendBadge({ direction }: { direction: "up" | "down" | null }) {
 }
 
 export default async function OverviewPage() {
-  const { d7, d30, prev30 } = await getSummary();
+  const [{ d7, d30, prev30 }, latestReport] = await Promise.all([getSummary(), getLatestReport()]);
 
   const cards = [
     {
@@ -161,6 +172,27 @@ export default async function OverviewPage() {
           </a>
         ))}
       </div>
+
+      <Link href="/insights" className="block rounded-lg border p-4 transition-colors hover:bg-muted/50">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-medium">Weekly Insights</p>
+          </div>
+          {latestReport && (
+            <p className="text-xs text-muted-foreground">
+              {new Date(latestReport.period_start).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              {" – "}
+              {new Date(latestReport.period_end).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </p>
+          )}
+        </div>
+        {latestReport ? (
+          <p className="text-xs text-muted-foreground line-clamp-3">{latestReport.content}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">No report yet — generates Monday mornings.</p>
+        )}
+      </Link>
     </div>
   );
 }
