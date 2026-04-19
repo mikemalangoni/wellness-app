@@ -119,9 +119,11 @@ export function LogForm({ initial }: { initial: InitialData }) {
   const [mood, setMood] = useState<number | null>(initial.mood ?? null);
   const [focus, setFocus] = useState<number | null>(initial.focus ?? null);
   const [waterOz, setWaterOz] = useState(initial.water_oz?.toString() ?? "");
+  const [waterAdd, setWaterAdd] = useState("");
   const [alcoholCount, setAlcoholCount] = useState(initial.alcohol_count?.toString() ?? "");
   const [alcoholDesc, setAlcoholDesc] = useState(initial.alcohol_desc ?? "");
   const [coffeeCount, setCoffeeCount] = useState(initial.coffee_count?.toString() ?? "");
+  const [coffeeAdd, setCoffeeAdd] = useState("");
   const [breakfastNotes, setBreakfastNotes] = useState(initial.breakfast_notes ?? "");
   const [lunchNotes, setLunchNotes] = useState(initial.lunch_notes ?? "");
   const [dinnerNotes, setDinnerNotes] = useState(initial.dinner_notes ?? "");
@@ -190,10 +192,10 @@ export function LogForm({ initial }: { initial: InitialData }) {
       awake_min: num(awakeMin),
       mood,
       focus,
-      water_oz: num(waterOz),
+      water_oz: (num(waterOz) ?? 0) + (num(waterAdd) ?? 0) || null,
       alcohol_count: int(alcoholCount),
       alcohol_desc: alcoholDesc,
-      coffee_count: int(coffeeCount),
+      coffee_count: (num(coffeeCount) ?? 0) + (num(coffeeAdd) ?? 0) || null,
       breakfast_notes: breakfastNotes,
       lunch_notes: lunchNotes,
       dinner_notes: dinnerNotes,
@@ -209,6 +211,12 @@ export function LogForm({ initial }: { initial: InitialData }) {
     startTransition(async () => {
       const result = await saveLog(input);
       if (result.success) {
+        const newWater = (num(waterOz) ?? 0) + (num(waterAdd) ?? 0);
+        const newCoffee = (num(coffeeCount) ?? 0) + (num(coffeeAdd) ?? 0);
+        setWaterOz(newWater ? newWater.toString() : "");
+        setWaterAdd("");
+        setCoffeeCount(newCoffee ? newCoffee.toString() : "");
+        setCoffeeAdd("");
         setSaved(true);
       } else {
         setError(result.error ?? "Save failed");
@@ -347,21 +355,26 @@ export function LogForm({ initial }: { initial: InitialData }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground">Water (oz)</label>
+              <p className="text-sm font-medium mb-1">{waterOz || "0"} oz today</p>
               <Input
                 type="number"
-                placeholder="80"
-                value={waterOz}
-                onChange={(e) => setWaterOz(e.target.value)}
+                step="any"
+                min="0"
+                placeholder="Add oz"
+                value={waterAdd}
+                onChange={(e) => setWaterAdd(e.target.value)}
               />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Coffee (cups)</label>
+              <p className="text-sm font-medium mb-1">{coffeeCount || "0"} cups today</p>
               <Input
                 type="number"
+                step="any"
                 min="0"
-                placeholder="2"
-                value={coffeeCount}
-                onChange={(e) => setCoffeeCount(e.target.value)}
+                placeholder="Add cups"
+                value={coffeeAdd}
+                onChange={(e) => setCoffeeAdd(e.target.value)}
               />
             </div>
           </div>
