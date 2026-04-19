@@ -2,14 +2,16 @@ name: Weekly Report
 
 on:
   schedule:
-    - cron: '0 9 * * 0'  # 9am UTC every Sunday (1hr after ingest)
+    - cron: '0 6 * * 1'  # 6am UTC Monday (overnight Sunday→Monday)
   workflow_dispatch:      # allow manual trigger from Actions tab
+
+permissions:
+  contents: read
+  models: read
 
 jobs:
   report:
     runs-on: ubuntu-latest
-    permissions:
-      models: read
     defaults:
       run:
         working-directory: pipeline
