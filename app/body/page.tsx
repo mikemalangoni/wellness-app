@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { fillDateSpine, fmtDate } from "@/lib/charts";
 
 type RangeKey = "30d" | "90d" | "6m" | "all";
 
@@ -76,23 +77,23 @@ function rollingMean(values: (number | null)[], window = 5): (number | null)[] {
   });
 }
 
-function weekStart(dateStr: string): string {
-  const d = new Date(dateStr);
+/** Returns [sortKey (ms timestamp of Monday), display label] */
+function weekStart(dateStr: string): [number, string] {
+  // Parse as local date (not UTC) to avoid off-by-one-day errors in UTC-negative timezones.
+  // "2026-04-06" parsed as UTC midnight becomes April 5 locally in e.g. Eastern time,
+  // which flips the day-of-week and pushes the week bucket back by a full week.
+  const [y, mo, dy] = String(dateStr).slice(0, 10).split("-").map(Number);
+  const d = new Date(y, mo - 1, dy);
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const mon = new Date(d.setDate(diff));
-  return mon.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  d.setDate(diff);
+  return [d.getTime(), d.toLocaleDateString("en-US", { month: "short", day: "numeric" })];
 }
 
 function formatPace(minPerMile: number): string {
   const mins = Math.floor(minPerMile);
   const secs = Math.round((minPerMile - mins) * 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
-
-function fmt(dateStr: string) {
-  const [y, m, d] = String(dateStr).slice(0, 10).split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function DarkStatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -159,7 +160,12 @@ export default function BodyPage() {
     const WORKOUT_TYPES = new Set(["Run", "Walk", "Strength"]);
     const allSessions = await exRes.json();
     setSessions(allSessions.filter((s: { activity_type: string }) => WORKOUT_TYPES.has(s.activity_type)));
-    setEntries(await enRes.json());
+    const rawEntries = await enRes.json();
+    const today = new Date().toISOString().slice(0, 10);
+    const to = today;
+    const from = range === "all" ? null : new Date(Date.now() - DAYS[range] * 86_400_000).toISOString().split("T")[0];
+    const start = from ?? (rawEntries.length ? String(rawEntries[0].date).slice(0, 10) : today);
+    setEntries(fillDateSpine(rawEntries, start, to));
     setLoading(false);
   }, [range]);
 
@@ -172,16 +178,16 @@ export default function BodyPage() {
   const pctActive = totalDays ? Math.round((daysActive / totalDays) * 100) : 0;
 
   // Sessions per week by type
-  const weekMap: Record<string, Record<string, number>> = {};
+  const weekMap: Record<string, { sortKey: number; counts: Record<string, number> }> = {};
   sessions.forEach((s) => {
-    const w = weekStart(s.date);
-    if (!weekMap[w]) weekMap[w] = {};
+    const [sortKey, label] = weekStart(s.date);
+    if (!weekMap[label]) weekMap[label] = { sortKey, counts: {} };
     const t = s.activity_type ?? "Other";
-    weekMap[w][t] = (weekMap[w][t] ?? 0) + 1;
+    weekMap[label].counts[t] = (weekMap[label].counts[t] ?? 0) + 1;
   });
   const weekData = Object.entries(weekMap)
-    .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-    .map(([week, types]) => ({ week, ...types }));
+    .sort(([, a], [, b]) => a.sortKey - b.sortKey)
+    .map(([week, { counts }]) => ({ week, ...counts }));
 
   const activityTypes = [...new Set(sessions.map((s) => s.activity_type ?? "Other"))];
 
@@ -198,7 +204,7 @@ export default function BodyPage() {
   // Build date-indexed HR data per type
   const allDates = [...new Set(sessions.map((s) => s.date))].sort();
   const hrByTypeData = allDates.map((date) => {
-    const row: Record<string, number | string | null> = { date: fmt(date) };
+    const row: Record<string, number | string | null> = { date: fmtDate(date) };
     typesWithHr.forEach((t) => {
       const match = sessions.find((s) => s.date === date && s.activity_type === t && s.hr_avg != null);
       row[t] = match ? parseFloat(match.hr_avg) : null;
@@ -211,7 +217,7 @@ export default function BodyPage() {
     .filter((s) => s.activity_type === "Run" && s.distance_mi && s.duration_min)
     .map((s) => ({
       date: s.date,
-      dateFmt: fmt(s.date),
+      dateFmt: fmtDate(s.date),
       pace: parseFloat(s.duration_min) / parseFloat(s.distance_mi),
       effort: s.effort ? parseFloat(s.effort) : null,
       hr: s.hr_avg ? parseFloat(s.hr_avg) : null,

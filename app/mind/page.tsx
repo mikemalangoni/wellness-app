@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { fillDateSpine, fmtDate } from "@/lib/charts";
 
 type RangeKey = "7d" | "30d" | "90d" | "all";
 
@@ -32,12 +33,12 @@ const RANGES: { label: string; value: RangeKey }[] = [
 const DAYS: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
 
 function buildQuery(range: RangeKey) {
-  if (range === "all") return "/api/entries";
   const to = new Date().toISOString().split("T")[0];
+  if (range === "all") return { url: "/api/entries", from: null, to };
   const from = new Date(Date.now() - DAYS[range] * 86_400_000)
     .toISOString()
     .split("T")[0];
-  return `/api/entries?from=${from}&to=${to}`;
+  return { url: `/api/entries?from=${from}&to=${to}`, from, to };
 }
 
 function rollingMean(values: (number | null)[], window = 7): (number | null)[] {
@@ -79,14 +80,6 @@ function correlationColor(r: number): string {
   if (abs < 0.15) return "text-muted-foreground";
   if (r > 0) return abs >= 0.35 ? "text-green-500" : "text-green-400";
   return abs >= 0.35 ? "text-red-500" : "text-red-400";
-}
-
-function fmt(dateStr: string) {
-  const [y, m, d] = String(dateStr).slice(0, 10).split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
 }
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -195,9 +188,12 @@ export default function MindPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(buildQuery(range));
-    const data = await res.json();
-    setEntries(data);
+    const { url, from, to } = buildQuery(range);
+    const res = await fetch(url);
+    const raw = await res.json();
+    const today = new Date().toISOString().slice(0, 10);
+    const start = from ?? (raw.length ? String(raw[0].date).slice(0, 10) : today);
+    setEntries(fillDateSpine(raw, start, today));
     setLoading(false);
   }, [range]);
 
@@ -213,7 +209,7 @@ export default function MindPage() {
   const focusTrend = rollingMean(focuses);
 
   const chartData = entries.map((e, i) => ({
-    date: fmt(e.date),
+    date: fmtDate(e.date),
     Mood: moods[i],
     Focus: focuses[i],
     "Mood trend": moodTrend[i] != null ? parseFloat(moodTrend[i]!.toFixed(2)) : null,

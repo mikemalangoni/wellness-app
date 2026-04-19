@@ -1,7 +1,6 @@
 "use client";
 
 import { useTransition, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,7 +101,6 @@ export type InitialData = Partial<LogInput> & {
 };
 
 export function LogForm({ initial }: { initial: InitialData }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -200,7 +198,6 @@ export function LogForm({ initial }: { initial: InitialData }) {
       const result = await saveLog(input);
       if (result.success) {
         setSaved(true);
-        setTimeout(() => router.push("/"), 1000);
       } else {
         setError(result.error ?? "Save failed");
       }
@@ -532,7 +529,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
 
       {saved && (
         <p className="text-sm text-green-600 rounded-md border border-green-500/50 bg-green-500/10 px-3 py-2">
-          Saved — redirecting…
+          Saved
         </p>
       )}
 
