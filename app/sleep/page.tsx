@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { fillDateSpine, fmtDate } from "@/lib/charts";
 
 type RangeKey = "7d" | "30d" | "90d" | "all";
 
@@ -35,12 +36,12 @@ const RANGES: { label: string; value: RangeKey }[] = [
 const DAYS: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
 
 function buildQuery(range: RangeKey) {
-  if (range === "all") return "/api/entries";
   const to = new Date().toISOString().split("T")[0];
+  if (range === "all") return { url: "/api/entries", from: null, to };
   const from = new Date(Date.now() - DAYS[range] * 86_400_000)
     .toISOString()
     .split("T")[0];
-  return `/api/entries?from=${from}&to=${to}`;
+  return { url: `/api/entries?from=${from}&to=${to}`, from, to };
 }
 
 function rollingMean(values: (number | null)[], window = 7): (number | null)[] {
@@ -49,14 +50,6 @@ function rollingMean(values: (number | null)[], window = 7): (number | null)[] {
       .slice(Math.max(0, i - window + 1), i + 1)
       .filter((v): v is number => v !== null);
     return slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : null;
-  });
-}
-
-function fmt(dateStr: string) {
-  const [y, m, d] = String(dateStr).slice(0, 10).split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
   });
 }
 
@@ -109,9 +102,12 @@ export default function SleepPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(buildQuery(range));
-    const data = await res.json();
-    setEntries(data);
+    const { url, from, to } = buildQuery(range);
+    const res = await fetch(url);
+    const raw = await res.json();
+    const today = new Date().toISOString().slice(0, 10);
+    const start = from ?? (raw.length ? String(raw[0].date).slice(0, 10) : today);
+    setEntries(fillDateSpine(raw, start, today));
     setLoading(false);
   }, [range]);
 
@@ -121,7 +117,8 @@ export default function SleepPage() {
 
   const sleepRows = entries.filter((e) => e.sleep_duration != null);
 
-  const durations = sleepRows.map((e) =>
+  // Compute trends over the full spine (nulls for missing days handled by rollingMean)
+  const durations = entries.map((e) =>
     e.sleep_duration ? parseFloat(e.sleep_duration) : null
   );
   const hrvValues = entries.map((e) =>
@@ -132,13 +129,13 @@ export default function SleepPage() {
   const hrvTrend = rollingMean(hrvValues);
 
   const durationData = entries.map((e, i) => ({
-    date: fmt(e.date),
+    date: fmtDate(e.date),
     Duration: e.sleep_duration ? parseFloat(e.sleep_duration) : null,
     "7-day avg": durationTrend[i] != null ? parseFloat(durationTrend[i]!.toFixed(2)) : null,
   }));
 
   const hrvData = entries.map((e, i) => ({
-    date: fmt(e.date),
+    date: fmtDate(e.date),
     HRV: e.hrv ? parseFloat(e.hrv) : null,
     "7-day avg": hrvTrend[i] != null ? parseFloat(hrvTrend[i]!.toFixed(1)) : null,
   }));
@@ -150,7 +147,7 @@ export default function SleepPage() {
         ? parseFloat(((parseFloat(e.awake_min) / durationMin) * 100).toFixed(1))
         : null;
     return {
-      date: fmt(e.date),
+      date: fmtDate(e.date),
       Deep: e.deep_pct != null ? parseFloat((parseFloat(e.deep_pct) * 100).toFixed(1)) : null,
       REM: e.rem_pct != null ? parseFloat((parseFloat(e.rem_pct) * 100).toFixed(1)) : null,
       Core: e.core_pct != null ? parseFloat((parseFloat(e.core_pct) * 100).toFixed(1)) : null,
