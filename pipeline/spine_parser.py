@@ -322,8 +322,14 @@ _GI_EVENT_RE = re.compile(
     re.IGNORECASE,
 )
 
-_WATER_RE = re.compile(r"Water\s*[:\-]\s*(.+)", re.IGNORECASE)
-_ALCOHOL_RE = re.compile(r"Alcohol\s*[:\-]\s*(.+)", re.IGNORECASE)
+_WATER_RE     = re.compile(r"Water\s*[:\-]\s*(.+)", re.IGNORECASE)
+_ALCOHOL_RE   = re.compile(r"Alcohol\s*[:\-]\s*(.+)", re.IGNORECASE)
+_COFFEE_RE    = re.compile(r"Coffee\s*[:\-]\s*(.+)", re.IGNORECASE)
+_BREAKFAST_RE = re.compile(r"Breakfast\s*[:\-]\s*(.+)", re.IGNORECASE)
+_LUNCH_RE     = re.compile(r"Lunch\s*[:\-]\s*(.+)", re.IGNORECASE)
+_DINNER_RE    = re.compile(r"Dinner\s*[:\-]\s*(.+)", re.IGNORECASE)
+_SNACK_RE     = re.compile(r"Snack\s*[:\-]\s*(.+)", re.IGNORECASE)
+_FNOTES_RE    = re.compile(r"Notes\s*[:\-]\s*(.+)", re.IGNORECASE)
 
 
 def _extract_water_alcohol(lines: list[str]) -> dict:
@@ -355,6 +361,60 @@ def _extract_water_alcohol(lines: list[str]) -> dict:
                     fields["alcohol_desc"] = val
             continue
 
+    return fields
+
+
+def _parse_food_beverage(lines: list[str]) -> dict:
+    """Parse the FOOD & BEVERAGE section into structured fields."""
+    fields: dict = {
+        **_extract_water_alcohol(lines),
+        "coffee_count": None,
+        "breakfast_notes": None,
+        "lunch_notes": None,
+        "dinner_notes": None,
+        "snack_notes": None,
+        "general_notes": None,
+    }
+    for raw in lines:
+        line = raw.strip()
+        m = _COFFEE_RE.match(line)
+        if m:
+            val = m.group(1).strip()
+            if not _not_logged(val):
+                num = re.search(r"(\d+)", val)
+                if num:
+                    fields["coffee_count"] = _safe_int(num.group(1))
+            continue
+        m = _BREAKFAST_RE.match(line)
+        if m:
+            val = m.group(1).strip()
+            if not _not_logged(val):
+                fields["breakfast_notes"] = val
+            continue
+        m = _LUNCH_RE.match(line)
+        if m:
+            val = m.group(1).strip()
+            if not _not_logged(val):
+                fields["lunch_notes"] = val
+            continue
+        m = _DINNER_RE.match(line)
+        if m:
+            val = m.group(1).strip()
+            if not _not_logged(val):
+                fields["dinner_notes"] = val
+            continue
+        m = _SNACK_RE.match(line)
+        if m:
+            val = m.group(1).strip()
+            if not _not_logged(val):
+                fields["snack_notes"] = val
+            continue
+        m = _FNOTES_RE.match(line)
+        if m:
+            val = m.group(1).strip()
+            if not _not_logged(val):
+                fields["general_notes"] = val
+            continue
     return fields
 
 
@@ -500,6 +560,7 @@ def _parse_exercise(lines: list[str]) -> tuple[list[dict], bool]:
                 "cadence_spm": None,
                 "effort": None,
                 "distance_mi": None,
+                "notes": None,
             }
         else:
             if current is None:
@@ -520,6 +581,10 @@ def _parse_exercise(lines: list[str]) -> tuple[list[dict], bool]:
             m = re.search(r"Distance\s*[:\-]\s*([\d.]+)\s*mi", line, re.IGNORECASE)
             if m:
                 current["distance_mi"] = _safe_float(m.group(1))
+                continue
+            m = re.match(r"Notes\s*[:\-]\s*(.+)", line, re.IGNORECASE)
+            if m:
+                current["notes"] = m.group(1).strip()
                 continue
 
     if current is not None:
@@ -603,7 +668,7 @@ def _parse_entry(chunk: str) -> Optional[dict]:
     if sleep_data["wake_time"] is not None:
         sleep_data["wake_time"] = _wake_datetime(entry_date, sleep_data["wake_time"])
     gi_fields, gi_events = _parse_gi(sections.get("GI", []))
-    food_fields = _extract_water_alcohol(sections.get("FOOD & BEVERAGE", []))
+    food_fields = _parse_food_beverage(sections.get("FOOD & BEVERAGE", []))
     mood_data = _parse_mood(sections.get("MOOD & FOCUS", []))
     exercise_events, rest_day = _parse_exercise(sections.get("EXERCISE", []))
 
@@ -632,6 +697,12 @@ def _parse_entry(chunk: str) -> Optional[dict]:
         "water_oz": water_oz,
         "alcohol_count": alcohol_count,
         "alcohol_desc": alcohol_desc,
+        "coffee_count": food_fields["coffee_count"],
+        "breakfast_notes": food_fields["breakfast_notes"],
+        "lunch_notes": food_fields["lunch_notes"],
+        "dinner_notes": food_fields["dinner_notes"],
+        "snack_notes": food_fields["snack_notes"],
+        "general_notes": food_fields["general_notes"],
         **mood_data,
         "rest_day": rest_day,
         "_gi_events": gi_events,

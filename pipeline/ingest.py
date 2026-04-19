@@ -81,6 +81,7 @@ def upsert_entries(cur, df: pd.DataFrame) -> None:
             deep_min, core_min, rem_min, awake_min,
             deep_pct, rem_pct, core_pct, hrv,
             water_oz, alcohol_count, alcohol_desc,
+            coffee_count, breakfast_notes, lunch_notes, dinner_notes, snack_notes, general_notes,
             mood, focus,
             bm_count, avg_bristol, max_urgency,
             total_exercise_min, did_exercise, rest_day
@@ -102,6 +103,12 @@ def upsert_entries(cur, df: pd.DataFrame) -> None:
             water_oz            = EXCLUDED.water_oz,
             alcohol_count       = EXCLUDED.alcohol_count,
             alcohol_desc        = EXCLUDED.alcohol_desc,
+            coffee_count        = EXCLUDED.coffee_count,
+            breakfast_notes     = EXCLUDED.breakfast_notes,
+            lunch_notes         = EXCLUDED.lunch_notes,
+            dinner_notes        = EXCLUDED.dinner_notes,
+            snack_notes         = EXCLUDED.snack_notes,
+            general_notes       = EXCLUDED.general_notes,
             mood                = EXCLUDED.mood,
             focus               = EXCLUDED.focus,
             bm_count            = EXCLUDED.bm_count,
@@ -130,6 +137,12 @@ def upsert_entries(cur, df: pd.DataFrame) -> None:
             _val(r, "water_oz"),
             _val(r, "alcohol_count"),
             _val(r, "alcohol_desc"),
+            _val(r, "coffee_count"),
+            _val(r, "breakfast_notes"),
+            _val(r, "lunch_notes"),
+            _val(r, "dinner_notes"),
+            _val(r, "snack_notes"),
+            _val(r, "general_notes"),
             _val(r, "mood"),
             _val(r, "focus"),
             _val(r, "bm_count"),
@@ -169,7 +182,7 @@ def upsert_exercise_sessions(cur, df: pd.DataFrame) -> None:
     cur.execute("DELETE FROM exercise_sessions WHERE date = ANY(%s)", (list(dates),))
     sql = """
         INSERT INTO exercise_sessions
-            (date, activity_type, activity_raw, duration_min, hr_avg, cadence_spm, effort, distance_mi)
+            (date, activity_type, activity_raw, duration_min, hr_avg, cadence_spm, effort, distance_mi, notes)
         VALUES %s
     """
     rows = [
@@ -182,6 +195,7 @@ def upsert_exercise_sessions(cur, df: pd.DataFrame) -> None:
             _val(r, "cadence_spm"),
             _val(r, "effort"),
             _val(r, "distance_mi"),
+            _val(r, "notes"),
         )
         for _, r in df.iterrows()
     ]
