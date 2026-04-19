@@ -324,12 +324,12 @@ _GI_EVENT_RE = re.compile(
 
 _WATER_RE     = re.compile(r"Water\s*[:\-]\s*(.+)", re.IGNORECASE)
 _ALCOHOL_RE   = re.compile(r"Alcohol\s*[:\-]\s*(.+)", re.IGNORECASE)
-_COFFEE_RE    = re.compile(r"Coffee\s*[:\-]\s*(.+)", re.IGNORECASE)
-_BREAKFAST_RE = re.compile(r"Breakfast\s*[:\-]\s*(.+)", re.IGNORECASE)
-_LUNCH_RE     = re.compile(r"Lunch\s*[:\-]\s*(.+)", re.IGNORECASE)
-_DINNER_RE    = re.compile(r"Dinner\s*[:\-]\s*(.+)", re.IGNORECASE)
-_SNACK_RE     = re.compile(r"Snack\s*[:\-]\s*(.+)", re.IGNORECASE)
-_FNOTES_RE    = re.compile(r"Notes\s*[:\-]\s*(.+)", re.IGNORECASE)
+_COFFEE_RE    = re.compile(r"Coffee\s*(?:\([^)]*\))?\s*[:\-]\s*(.+)", re.IGNORECASE)
+_BREAKFAST_RE = re.compile(r"Breakfast\s*(?:\([^)]*\))?\s*[:\-]\s*(.+)", re.IGNORECASE)
+_LUNCH_RE     = re.compile(r"Lunch\s*(?:\([^)]*\))?\s*[:\-]\s*(.+)", re.IGNORECASE)
+_DINNER_RE    = re.compile(r"Dinner\s*(?:\([^)]*\))?\s*[:\-]\s*(.+)", re.IGNORECASE)
+_SNACK_RE     = re.compile(r"Snack\s*(?:\([^)]*\))?\s*[:\-]\s*(.+)", re.IGNORECASE)
+_FNOTES_RE    = re.compile(r"Notes\s*(?:\([^)]*\))?\s*[:\-]\s*(.+)", re.IGNORECASE)
 
 
 def _extract_water_alcohol(lines: list[str]) -> dict:
@@ -381,9 +381,9 @@ def _parse_food_beverage(lines: list[str]) -> dict:
         if m:
             val = m.group(1).strip()
             if not _not_logged(val):
-                num = re.search(r"(\d+)", val)
-                if num:
-                    fields["coffee_count"] = _safe_int(num.group(1))
+                cups = sum(float(x) for x in re.findall(r"([\d.]+)\s*cups?", val, re.IGNORECASE))
+                if cups > 0:
+                    fields["coffee_count"] = round(cups)
             continue
         m = _BREAKFAST_RE.match(line)
         if m:
