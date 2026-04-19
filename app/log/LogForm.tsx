@@ -91,6 +91,15 @@ function int(v: string): number | null {
   return isNaN(n) ? null : n;
 }
 
+function parseDuration(v: string): number | null {
+  const hhmmss = v.match(/^(\d+):(\d{2}):(\d{2})$/);
+  if (hhmmss) return parseInt(hhmmss[1], 10) * 60 + parseInt(hhmmss[2], 10) + parseInt(hhmmss[3], 10) / 60;
+  const mmss = v.match(/^(\d+):(\d{2})$/);
+  if (mmss) return parseInt(mmss[1], 10) + parseInt(mmss[2], 10) / 60;
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
 function today(): string {
   return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
 }
@@ -151,6 +160,9 @@ export function LogForm({ initial }: { initial: InitialData }) {
   const [exercises, setExercises] = useState<ExerciseInput[]>(
     initial.exercise_sessions?.length ? initial.exercise_sessions : []
   );
+  const [exerciseDurations, setExerciseDurations] = useState<string[]>(
+    initial.exercise_sessions?.map((e) => e.duration_min?.toString() ?? "") ?? []
+  );
 
   function addGI() {
     setGiEvents((prev) => [...prev, { event_time: "", bristol: 0, urgency: "" }]);
@@ -169,6 +181,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
       ...prev,
       { activity_type: "Run", duration_min: null, hr_avg: null, effort: null, distance_mi: null, notes: "" },
     ]);
+    setExerciseDurations((prev) => [...prev, ""]);
   }
 
   function updateEx(i: number, patch: Partial<ExerciseInput>) {
@@ -177,6 +190,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
 
   function removeEx(i: number) {
     setExercises((prev) => prev.filter((_, idx) => idx !== i));
+    setExerciseDurations((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   function handleSubmit() {
@@ -542,13 +556,17 @@ export function LogForm({ initial }: { initial: InitialData }) {
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div>
-                  <label className="text-xs text-muted-foreground">Duration (min)</label>
+                  <label className="text-xs text-muted-foreground">Duration (min, mm:ss, or h:mm:ss)</label>
                   <Input
-                    type="number"
-                    min="0"
-                    placeholder="45"
-                    value={ex.duration_min ?? ""}
-                    onChange={(e) => updateEx(i, { duration_min: int(e.target.value) })}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="45, 23:09, or 1:19:29"
+                    value={exerciseDurations[i] ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setExerciseDurations((prev) => prev.map((d, idx) => idx === i ? raw : d));
+                      updateEx(i, { duration_min: parseDuration(raw) });
+                    }}
                   />
                 </div>
                 <div>

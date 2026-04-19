@@ -16,6 +16,13 @@ ALTER TABLE entries
 ALTER TABLE exercise_sessions
   ADD COLUMN IF NOT EXISTS notes TEXT;
 
+-- Migration: allow decimal duration_min (MM:SS parsing stores fractional minutes)
+ALTER TABLE exercise_sessions
+  ALTER COLUMN duration_min TYPE NUMERIC;
+
+ALTER TABLE entries
+  ALTER COLUMN total_exercise_min TYPE NUMERIC;
+
 CREATE TABLE IF NOT EXISTS exercise_sets (
   id                  SERIAL PRIMARY KEY,
   exercise_session_id INT NOT NULL REFERENCES exercise_sessions(id) ON DELETE CASCADE,
