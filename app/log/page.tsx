@@ -2,6 +2,8 @@ import sql from "@/lib/db";
 import { LogForm } from "./LogForm";
 import type { InitialData } from "./LogForm";
 
+export const dynamic = "force-dynamic";
+
 async function getTodayEntry(): Promise<InitialData> {
   const [entry] = await sql`
     SELECT
@@ -34,7 +36,20 @@ async function getTodayEntry(): Promise<InitialData> {
     ORDER BY id
   `;
 
-  if (!entry) return {};
+  if (!entry) return {
+    gi_events: gi.map((e) => ({
+      event_time: e.event_time ?? "",
+      bristol: Number(e.bristol),
+      urgency: (e.urgency ?? "") as "low" | "moderate" | "high" | "",
+    })),
+    exercise_sessions: ex.map((e) => ({
+      activity_type: e.activity_type ?? "",
+      duration_min: e.duration_min != null ? Number(e.duration_min) : null,
+      hr_avg: e.hr_avg != null ? Number(e.hr_avg) : null,
+      effort: e.effort != null ? Number(e.effort) : null,
+      distance_mi: e.distance_mi != null ? Number(e.distance_mi) : null,
+    })),
+  };
 
   return {
     ...entry,
