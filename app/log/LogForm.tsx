@@ -264,7 +264,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
                 className="w-32"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs text-muted-foreground">Bed time</label>
                 <Input type="time" value={bedTime} onChange={(e) => setBedTime(e.target.value)} />
