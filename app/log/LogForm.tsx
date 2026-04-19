@@ -247,10 +247,10 @@ export function LogForm({ initial }: { initial: InitialData }) {
                 if (parsed.rem_min)        setRemMin(parsed.rem_min);
                 if (parsed.awake_min)      setAwakeMin(parsed.awake_min);
               }}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base font-mono resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-3">
             <div>
               <label className="text-xs text-muted-foreground">Duration (hrs)</label>
               <Input
@@ -261,15 +261,18 @@ export function LogForm({ initial }: { initial: InitialData }) {
                 placeholder="7.5"
                 value={sleepDuration}
                 onChange={(e) => setSleepDuration(e.target.value)}
+                className="w-32"
               />
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Bed time</label>
-              <Input type="time" value={bedTime} onChange={(e) => setBedTime(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Wake time</label>
-              <Input type="time" value={wakeTime} onChange={(e) => setWakeTime(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground">Bed time</label>
+                <Input type="time" value={bedTime} onChange={(e) => setBedTime(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Wake time</label>
+                <Input type="time" value={wakeTime} onChange={(e) => setWakeTime(e.target.value)} />
+              </div>
             </div>
           </div>
           <div>
