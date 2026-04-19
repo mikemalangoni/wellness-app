@@ -57,7 +57,7 @@ export async function saveLog(
 
     // Sleep stage percentages
     const stageMins = [input.deep_min, input.core_min, input.rem_min, input.awake_min];
-    const stageTotal = stageMins.reduce((s, v) => s + (v ?? 0), 0);
+    const stageTotal = stageMins.reduce((s: number, v) => s + (v ?? 0), 0);
     const deep_pct = stageTotal > 0 && input.deep_min != null ? input.deep_min / stageTotal : null;
     const core_pct = stageTotal > 0 && input.core_min != null ? input.core_min / stageTotal : null;
     const rem_pct = stageTotal > 0 && input.rem_min != null ? input.rem_min / stageTotal : null;
