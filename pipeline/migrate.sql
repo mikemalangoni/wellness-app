@@ -9,6 +9,10 @@ ALTER TABLE entries
   ADD COLUMN IF NOT EXISTS snack_notes      TEXT,
   ADD COLUMN IF NOT EXISTS general_notes    TEXT;
 
+-- Migration: allow fractional coffee counts (e.g. 0.5 cup)
+ALTER TABLE entries
+  ALTER COLUMN coffee_count TYPE NUMERIC;
+
 ALTER TABLE exercise_sessions
   ADD COLUMN IF NOT EXISTS notes TEXT;
 
