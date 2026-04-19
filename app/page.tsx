@@ -52,7 +52,7 @@ async function getLatestReport(): Promise<{ content: string; period_start: strin
     ORDER BY report_date DESC
     LIMIT 1
   `;
-  return rows[0] ?? null;
+  return (rows[0] as { content: string; period_start: string; period_end: string }) ?? null;
 }
 
 function trendDirection(
