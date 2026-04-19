@@ -381,7 +381,13 @@ def _parse_food_beverage(lines: list[str]) -> dict:
         if m:
             val = m.group(1).strip()
             if not _not_logged(val):
-                cups = sum(float(x) for x in re.findall(r"([\d.]+)\s*cups?", val, re.IGNORECASE))
+                # Strip HHMM time tokens (e.g. "1000", "730") before counting cups
+                # so "1000 cup; 1100 cup" isn't read as 2100 cups
+                val_no_times = re.sub(r"\b\d{3,4}\b", "", val)
+                cups = sum(float(x) for x in re.findall(r"([\d.]+)\s*cups?", val_no_times, re.IGNORECASE))
+                if cups == 0:
+                    # Bare "cup" with no quantity = 1 cup each occurrence
+                    cups = len(re.findall(r"\bcups?\b", val, re.IGNORECASE))
                 if cups > 0:
                     fields["coffee_count"] = round(cups)
             continue
