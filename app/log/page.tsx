@@ -12,6 +12,7 @@ async function getTodayEntry(): Promise<InitialData> {
       deep_min, core_min, rem_min, awake_min,
       mood, focus,
       water_oz, alcohol_count, alcohol_desc,
+      coffee_count, breakfast_notes, lunch_notes, dinner_notes, snack_notes, general_notes,
       rest_day,
       TO_CHAR(bed_time, 'HH24:MI')  AS bed_time,
       TO_CHAR(wake_time, 'HH24:MI') AS wake_time
@@ -30,7 +31,7 @@ async function getTodayEntry(): Promise<InitialData> {
   `;
 
   const ex = await sql`
-    SELECT activity_type, duration_min, hr_avg, effort, distance_mi
+    SELECT activity_type, duration_min, hr_avg, effort, distance_mi, notes
     FROM exercise_sessions
     WHERE date = CURRENT_DATE
     ORDER BY id
@@ -48,6 +49,7 @@ async function getTodayEntry(): Promise<InitialData> {
       hr_avg: e.hr_avg != null ? Number(e.hr_avg) : null,
       effort: e.effort != null ? Number(e.effort) : null,
       distance_mi: e.distance_mi != null ? Number(e.distance_mi) : null,
+      notes: e.notes ?? "",
     })),
   };
 
@@ -63,6 +65,12 @@ async function getTodayEntry(): Promise<InitialData> {
     focus: entry.focus != null ? Number(entry.focus) : undefined,
     water_oz: entry.water_oz != null ? Number(entry.water_oz) : undefined,
     alcohol_count: entry.alcohol_count != null ? Number(entry.alcohol_count) : undefined,
+    coffee_count: entry.coffee_count != null ? Number(entry.coffee_count) : undefined,
+    breakfast_notes: entry.breakfast_notes ?? undefined,
+    lunch_notes: entry.lunch_notes ?? undefined,
+    dinner_notes: entry.dinner_notes ?? undefined,
+    snack_notes: entry.snack_notes ?? undefined,
+    general_notes: entry.general_notes ?? undefined,
     gi_events: gi.map((e) => ({
       event_time: e.event_time ?? "",
       bristol: Number(e.bristol),
@@ -74,6 +82,7 @@ async function getTodayEntry(): Promise<InitialData> {
       hr_avg: e.hr_avg != null ? Number(e.hr_avg) : null,
       effort: e.effort != null ? Number(e.effort) : null,
       distance_mi: e.distance_mi != null ? Number(e.distance_mi) : null,
+      notes: e.notes ?? "",
     })),
   };
 }

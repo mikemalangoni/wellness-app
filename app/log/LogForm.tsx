@@ -121,6 +121,12 @@ export function LogForm({ initial }: { initial: InitialData }) {
   const [waterOz, setWaterOz] = useState(initial.water_oz?.toString() ?? "");
   const [alcoholCount, setAlcoholCount] = useState(initial.alcohol_count?.toString() ?? "");
   const [alcoholDesc, setAlcoholDesc] = useState(initial.alcohol_desc ?? "");
+  const [coffeeCount, setCoffeeCount] = useState(initial.coffee_count?.toString() ?? "");
+  const [breakfastNotes, setBreakfastNotes] = useState(initial.breakfast_notes ?? "");
+  const [lunchNotes, setLunchNotes] = useState(initial.lunch_notes ?? "");
+  const [dinnerNotes, setDinnerNotes] = useState(initial.dinner_notes ?? "");
+  const [snackNotes, setSnackNotes] = useState(initial.snack_notes ?? "");
+  const [generalNotes, setGeneralNotes] = useState(initial.general_notes ?? "");
   const [restDay, setRestDay] = useState(initial.rest_day ?? false);
 
   // Auto-compute duration from bed/wake only on manual entries (no paste)
@@ -159,7 +165,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
   function addExercise() {
     setExercises((prev) => [
       ...prev,
-      { activity_type: "Run", duration_min: null, hr_avg: null, effort: null, distance_mi: null },
+      { activity_type: "Run", duration_min: null, hr_avg: null, effort: null, distance_mi: null, notes: "" },
     ]);
   }
 
@@ -187,6 +193,12 @@ export function LogForm({ initial }: { initial: InitialData }) {
       water_oz: num(waterOz),
       alcohol_count: int(alcoholCount),
       alcohol_desc: alcoholDesc,
+      coffee_count: int(coffeeCount),
+      breakfast_notes: breakfastNotes,
+      lunch_notes: lunchNotes,
+      dinner_notes: dinnerNotes,
+      snack_notes: snackNotes,
+      general_notes: generalNotes,
       gi_events: giEvents,
       exercise_sessions: exercises,
       rest_day: restDay,
@@ -332,15 +344,26 @@ export function LogForm({ initial }: { initial: InitialData }) {
           <CardTitle className="text-sm font-medium">Intake</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <label className="text-xs text-muted-foreground">Water (oz)</label>
-            <Input
-              type="number"
-              placeholder="80"
-              value={waterOz}
-              onChange={(e) => setWaterOz(e.target.value)}
-              className="w-32"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Water (oz)</label>
+              <Input
+                type="number"
+                placeholder="80"
+                value={waterOz}
+                onChange={(e) => setWaterOz(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Coffee (cups)</label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="2"
+                value={coffeeCount}
+                onChange={(e) => setCoffeeCount(e.target.value)}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -362,6 +385,40 @@ export function LogForm({ initial }: { initial: InitialData }) {
                 onChange={(e) => setAlcoholDesc(e.target.value)}
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Food */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Food</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[
+            { label: "Breakfast", value: breakfastNotes, set: setBreakfastNotes },
+            { label: "Lunch",     value: lunchNotes,     set: setLunchNotes },
+            { label: "Dinner",    value: dinnerNotes,    set: setDinnerNotes },
+            { label: "Snack",     value: snackNotes,     set: setSnackNotes },
+          ].map(({ label, value, set }) => (
+            <div key={label}>
+              <label className="text-xs text-muted-foreground">{label}</label>
+              <Input
+                type="text"
+                placeholder="—"
+                value={value}
+                onChange={(e) => set(e.target.value)}
+              />
+            </div>
+          ))}
+          <div>
+            <label className="text-xs text-muted-foreground">Notes</label>
+            <Input
+              type="text"
+              placeholder="—"
+              value={generalNotes}
+              onChange={(e) => setGeneralNotes(e.target.value)}
+            />
           </div>
         </CardContent>
       </Card>
@@ -515,6 +572,16 @@ export function LogForm({ initial }: { initial: InitialData }) {
                     />
                   </div>
                 )}
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Squats 3×10 @ 185 lb, Bench 3×8 @ 135 lb"
+                  value={ex.notes}
+                  onChange={(e) => updateEx(i, { notes: e.target.value })}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                />
               </div>
             </div>
           ))}

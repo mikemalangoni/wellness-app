@@ -16,6 +16,7 @@ export type ExerciseInput = {
   hr_avg: number | null;
   effort: number | null;
   distance_mi: number | null;
+  notes: string;
 };
 
 export type LogInput = {
@@ -33,6 +34,12 @@ export type LogInput = {
   water_oz: number | null;
   alcohol_count: number | null;
   alcohol_desc: string;
+  coffee_count: number | null;
+  breakfast_notes: string;
+  lunch_notes: string;
+  dinner_notes: string;
+  snack_notes: string;
+  general_notes: string;
   gi_events: GIEventInput[];
   exercise_sessions: ExerciseInput[];
   rest_day: boolean;
@@ -89,6 +96,7 @@ export async function saveLog(
         deep_pct, core_pct, rem_pct,
         mood, focus,
         water_oz, alcohol_count, alcohol_desc,
+        coffee_count, breakfast_notes, lunch_notes, dinner_notes, snack_notes, general_notes,
         bm_count, avg_bristol, max_urgency,
         total_exercise_min, did_exercise, rest_day
       ) VALUES (
@@ -98,6 +106,9 @@ export async function saveLog(
         ${deep_pct}, ${core_pct}, ${rem_pct},
         ${input.mood}, ${input.focus},
         ${input.water_oz}, ${input.alcohol_count || null}, ${input.alcohol_desc || null},
+        ${input.coffee_count || null},
+        ${input.breakfast_notes || null}, ${input.lunch_notes || null},
+        ${input.dinner_notes || null}, ${input.snack_notes || null}, ${input.general_notes || null},
         ${bm_count}, ${avg_bristol}, ${max_urgency},
         ${total_exercise_min}, ${did_exercise}, ${input.rest_day}
       )
@@ -118,6 +129,12 @@ export async function saveLog(
         water_oz           = EXCLUDED.water_oz,
         alcohol_count      = EXCLUDED.alcohol_count,
         alcohol_desc       = EXCLUDED.alcohol_desc,
+        coffee_count       = EXCLUDED.coffee_count,
+        breakfast_notes    = EXCLUDED.breakfast_notes,
+        lunch_notes        = EXCLUDED.lunch_notes,
+        dinner_notes       = EXCLUDED.dinner_notes,
+        snack_notes        = EXCLUDED.snack_notes,
+        general_notes      = EXCLUDED.general_notes,
         bm_count           = EXCLUDED.bm_count,
         avg_bristol        = EXCLUDED.avg_bristol,
         max_urgency        = EXCLUDED.max_urgency,
@@ -142,11 +159,12 @@ export async function saveLog(
     await sql`DELETE FROM exercise_sessions WHERE date = ${date}::date`;
     for (const ex of validEx) {
       await sql`
-        INSERT INTO exercise_sessions (date, activity_type, activity_raw, duration_min, hr_avg, effort, distance_mi)
+        INSERT INTO exercise_sessions (date, activity_type, activity_raw, duration_min, hr_avg, effort, distance_mi, notes)
         VALUES (
           ${date}::date,
           ${ex.activity_type}, ${ex.activity_type},
-          ${ex.duration_min}, ${ex.hr_avg}, ${ex.effort}, ${ex.distance_mi}
+          ${ex.duration_min}, ${ex.hr_avg}, ${ex.effort}, ${ex.distance_mi},
+          ${ex.notes || null}
         )
       `;
     }
