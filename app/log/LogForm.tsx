@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,42 @@ import { Input } from "@/components/ui/input";
 import { saveLog, type GIEventInput, type ExerciseInput, type LogInput } from "./actions";
 
 const ACTIVITY_TYPES = ["Run", "Walk", "Strength", "Cycling", "Yoga", "Swimming", "Movement", "Other"];
+
+function to24h(t: string): string {
+  const m = t.match(/(\d{1,2}):(\d{2})(am|pm)/i);
+  if (!m) return "";
+  let h = parseInt(m[1]);
+  const min = m[2];
+  const mer = m[3].toLowerCase();
+  if (mer === "pm" && h !== 12) h += 12;
+  if (mer === "am" && h === 12) h = 0;
+  return `${h.toString().padStart(2, "0")}:${min}`;
+}
+
+type SleepFields = {
+  sleep_duration?: string;
+  bed_time?: string;
+  wake_time?: string;
+  hrv?: string;
+  deep_min?: string;
+  core_min?: string;
+  rem_min?: string;
+  awake_min?: string;
+};
+
+function parseSleepPaste(text: string): SleepFields {
+  const r: SleepFields = {};
+  const bw = text.match(/Bed:\s*(\d{1,2}:\d{2}(?:am|pm))\s*[→>-]+\s*Wake:\s*(\d{1,2}:\d{2}(?:am|pm))/i);
+  if (bw) { r.bed_time = to24h(bw[1]); r.wake_time = to24h(bw[2]); }
+  const dur = text.match(/Duration:\s*([\d.]+)/i);
+  if (dur) r.sleep_duration = dur[1];
+  const deep = text.match(/Deep:\s*(\d+)\s*min/i);   if (deep) r.deep_min = deep[1];
+  const core = text.match(/Core:\s*(\d+)\s*min/i);   if (core) r.core_min = core[1];
+  const rem  = text.match(/REM:\s*(\d+)\s*min/i);    if (rem)  r.rem_min  = rem[1];
+  const awk  = text.match(/Awake:\s*(\d+)\s*min/i);  if (awk)  r.awake_min = awk[1];
+  const hrv  = text.match(/HRV:\s*([\d.]+)\s*ms/i);  if (hrv)  r.hrv = hrv[1];
+  return r;
+}
 const BRISTOL_LABELS: Record<number, string> = {
   1: "1 – Hard lumps",
   2: "2 – Lumpy",
@@ -73,6 +109,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
 
   // Core fields
   const [date, setDate] = useState(initial.date ?? today());
+  const [sleepPaste, setSleepPaste] = useState("");
   const [sleepDuration, setSleepDuration] = useState(initial.sleep_duration?.toString() ?? "");
   const [bedTime, setBedTime] = useState(initial.bed_time ?? "");
   const [wakeTime, setWakeTime] = useState(initial.wake_time ?? "");
@@ -87,6 +124,20 @@ export function LogForm({ initial }: { initial: InitialData }) {
   const [alcoholCount, setAlcoholCount] = useState(initial.alcohol_count?.toString() ?? "");
   const [alcoholDesc, setAlcoholDesc] = useState(initial.alcohol_desc ?? "");
   const [restDay, setRestDay] = useState(initial.rest_day ?? false);
+
+  // Auto-compute duration from bed/wake only on manual entries (no paste)
+  useEffect(() => {
+    if (sleepPaste) return;
+    if (!bedTime || !wakeTime) return;
+    const [bh, bm] = bedTime.split(":").map(Number);
+    const [wh, wm] = wakeTime.split(":").map(Number);
+    let bedMins = bh * 60 + bm;
+    const wakeMins = wh * 60 + wm;
+    if (bh >= 12) bedMins -= 24 * 60;
+    let diff = wakeMins - bedMins;
+    if (diff <= 0) diff += 24 * 60;
+    setSleepDuration((Math.round((diff / 60) * 10) / 10).toString());
+  }, [bedTime, wakeTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [giEvents, setGiEvents] = useState<GIEventInput[]>(
     initial.gi_events?.length ? initial.gi_events : []
@@ -177,6 +228,28 @@ export function LogForm({ initial }: { initial: InitialData }) {
           <CardTitle className="text-sm font-medium">Sleep</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground">Paste from Claude</label>
+            <textarea
+              rows={3}
+              placeholder={"Bed: 11:24pm → Wake: 7:20am\nDuration: 7.5 hrs | Apple Watch\nDeep: 27 min | Core: 324 min | REM: 101 min | Awake: 24 min\nHRV: 22 ms"}
+              value={sleepPaste}
+              onChange={(e) => {
+                const text = e.target.value;
+                setSleepPaste(text);
+                const parsed = parseSleepPaste(text);
+                if (parsed.sleep_duration) setSleepDuration(parsed.sleep_duration);
+                if (parsed.bed_time)       setBedTime(parsed.bed_time);
+                if (parsed.wake_time)      setWakeTime(parsed.wake_time);
+                if (parsed.hrv)            setHrv(parsed.hrv);
+                if (parsed.deep_min)       setDeepMin(parsed.deep_min);
+                if (parsed.core_min)       setCoreMin(parsed.core_min);
+                if (parsed.rem_min)        setRemMin(parsed.rem_min);
+                if (parsed.awake_min)      setAwakeMin(parsed.awake_min);
+              }}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-muted-foreground">Duration (hrs)</label>
