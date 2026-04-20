@@ -101,6 +101,38 @@ function parseDuration(v: string): number | null {
   return isNaN(n) ? null : n;
 }
 
+function splitDuration(raw: string): { h: string; m: string; s: string; showH: boolean } {
+  const hhmmss = raw.match(/^(\d+):(\d{2}):(\d{2})$/);
+  if (hhmmss) {
+    const h = parseInt(hhmmss[1], 10);
+    return { h: h > 0 ? hhmmss[1] : "", m: hhmmss[2], s: hhmmss[3], showH: h > 0 };
+  }
+  const mmss = raw.match(/^(\d+):(\d{2})$/);
+  if (mmss) return { h: "", m: mmss[1], s: mmss[2], showH: false };
+  const n = parseFloat(raw);
+  if (!isNaN(n) && n > 0) {
+    const totalSec = Math.round(n * 60);
+    const s = totalSec % 60;
+    const totalMin = Math.floor(totalSec / 60);
+    if (totalMin >= 60) {
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      return { h: String(h), m: String(m).padStart(2, "0"), s: String(s).padStart(2, "0"), showH: true };
+    }
+    return { h: "", m: String(totalMin), s: String(s).padStart(2, "0"), showH: false };
+  }
+  return { h: "", m: "", s: "", showH: false };
+}
+
+function segsToRaw(h: string, m: string, s: string, showH: boolean): string {
+  const mm = m || "0";
+  const ss = s || "0";
+  if (showH && parseInt(h || "0") > 0) {
+    return `${parseInt(h)}:${mm.padStart(2, "0")}:${ss.padStart(2, "0")}`;
+  }
+  return `${mm}:${ss.padStart(2, "0")}`;
+}
+
 function today(): string {
   return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
 }
@@ -129,6 +161,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [sleepPaste, setSleepPaste] = useState("");
   const [sleepDuration, setSleepDuration] = useState(initial.sleep_duration?.toString() ?? "");
+  const [sleepDurationManual, setSleepDurationManual] = useState(!!initial.sleep_duration);
   const [bedTime, setBedTime] = useState(initial.bed_time ?? "");
   const [wakeTime, setWakeTime] = useState(initial.wake_time ?? "");
   const [hrv, setHrv] = useState(initial.hrv?.toString() ?? "");
@@ -151,9 +184,10 @@ export function LogForm({ initial }: { initial: InitialData }) {
   const [generalNotes, setGeneralNotes] = useState(initial.general_notes ?? "");
   const [restDay, setRestDay] = useState(initial.rest_day ?? false);
 
-  // Auto-compute duration from bed/wake only on manual entries (no paste)
+  // Auto-compute duration from bed/wake only when not overridden by paste or manual edit
   useEffect(() => {
     if (sleepPaste) return;
+    if (sleepDurationManual) return;
     if (!bedTime || !wakeTime) return;
     const [bh, bm] = bedTime.split(":").map(Number);
     const [wh, wm] = wakeTime.split(":").map(Number);
@@ -163,7 +197,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
     let diff = wakeMins - bedMins;
     if (diff <= 0) diff += 24 * 60;
     setSleepDuration((Math.round((diff / 60) * 10) / 10).toString());
-  }, [bedTime, wakeTime]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [bedTime, wakeTime, sleepDurationManual]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [giEvents, setGiEvents] = useState<GIEventInput[]>(
     initial.gi_events?.length ? initial.gi_events : []
@@ -171,8 +205,17 @@ export function LogForm({ initial }: { initial: InitialData }) {
   const [exercises, setExercises] = useState<ExerciseInput[]>(
     initial.exercise_sessions?.length ? initial.exercise_sessions : []
   );
-  const [exerciseDurations, setExerciseDurations] = useState<string[]>(
-    initial.exercise_sessions?.map((e) => e.duration_min?.toString() ?? "") ?? []
+  const [exerciseHours, setExerciseHours] = useState<string[]>(() =>
+    (initial.exercise_sessions ?? []).map((e) => splitDuration(e.duration_min?.toString() ?? "").h)
+  );
+  const [exerciseMins, setExerciseMins] = useState<string[]>(() =>
+    (initial.exercise_sessions ?? []).map((e) => splitDuration(e.duration_min?.toString() ?? "").m)
+  );
+  const [exerciseSecs, setExerciseSecs] = useState<string[]>(() =>
+    (initial.exercise_sessions ?? []).map((e) => splitDuration(e.duration_min?.toString() ?? "").s)
+  );
+  const [exerciseShowHours, setExerciseShowHours] = useState<boolean[]>(() =>
+    (initial.exercise_sessions ?? []).map((e) => splitDuration(e.duration_min?.toString() ?? "").showH)
   );
 
   function addGI() {
@@ -192,16 +235,33 @@ export function LogForm({ initial }: { initial: InitialData }) {
       ...prev,
       { activity_type: "Run", duration_min: null, hr_avg: null, effort: null, distance_mi: null, notes: "" },
     ]);
-    setExerciseDurations((prev) => [...prev, ""]);
+    setExerciseHours((prev) => [...prev, ""]);
+    setExerciseMins((prev) => [...prev, ""]);
+    setExerciseSecs((prev) => [...prev, ""]);
+    setExerciseShowHours((prev) => [...prev, false]);
   }
 
   function updateEx(i: number, patch: Partial<ExerciseInput>) {
     setExercises((prev) => prev.map((ex, idx) => (idx === i ? { ...ex, ...patch } : ex)));
   }
 
+  function updateDurationSegment(i: number, field: "h" | "m" | "s", val: string) {
+    const h = field === "h" ? val : (exerciseHours[i] ?? "");
+    const m = field === "m" ? val : (exerciseMins[i] ?? "");
+    const s = field === "s" ? val : (exerciseSecs[i] ?? "");
+    const showH = exerciseShowHours[i] ?? false;
+    if (field === "h") setExerciseHours((prev) => prev.map((v, idx) => idx === i ? val : v));
+    else if (field === "m") setExerciseMins((prev) => prev.map((v, idx) => idx === i ? val : v));
+    else setExerciseSecs((prev) => prev.map((v, idx) => idx === i ? val : v));
+    updateEx(i, { duration_min: parseDuration(segsToRaw(h, m, s, showH)) });
+  }
+
   function removeEx(i: number) {
     setExercises((prev) => prev.filter((_, idx) => idx !== i));
-    setExerciseDurations((prev) => prev.filter((_, idx) => idx !== i));
+    setExerciseHours((prev) => prev.filter((_, idx) => idx !== i));
+    setExerciseMins((prev) => prev.filter((_, idx) => idx !== i));
+    setExerciseSecs((prev) => prev.filter((_, idx) => idx !== i));
+    setExerciseShowHours((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   function handleSubmit() {
@@ -280,7 +340,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
                 const text = e.target.value;
                 setSleepPaste(text);
                 const parsed = parseSleepPaste(text);
-                if (parsed.sleep_duration) setSleepDuration(parsed.sleep_duration);
+                if (parsed.sleep_duration) { setSleepDuration(parsed.sleep_duration); setSleepDurationManual(true); }
                 if (parsed.bed_time)       setBedTime(parsed.bed_time);
                 if (parsed.wake_time)      setWakeTime(parsed.wake_time);
                 if (parsed.hrv)            setHrv(parsed.hrv);
@@ -294,7 +354,9 @@ export function LogForm({ initial }: { initial: InitialData }) {
           </div>
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-muted-foreground">Duration (hrs)</label>
+              <label className="text-xs text-muted-foreground">
+                Duration (hrs){!sleepDurationManual && !sleepPaste && sleepDuration ? " (auto)" : ""}
+              </label>
               <Input
                 type="number"
                 step="0.1"
@@ -302,7 +364,10 @@ export function LogForm({ initial }: { initial: InitialData }) {
                 max="24"
                 placeholder="7.5"
                 value={sleepDuration}
-                onChange={(e) => setSleepDuration(e.target.value)}
+                onChange={(e) => {
+                  setSleepDuration(e.target.value);
+                  setSleepDurationManual(!!e.target.value);
+                }}
                 className="w-32"
               />
             </div>
@@ -567,18 +632,48 @@ export function LogForm({ initial }: { initial: InitialData }) {
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div>
-                  <label className="text-xs text-muted-foreground">Duration (min, mm:ss, or h:mm:ss)</label>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="45, 23:09, or 1:19:29"
-                    value={exerciseDurations[i] ?? ""}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      setExerciseDurations((prev) => prev.map((d, idx) => idx === i ? raw : d));
-                      updateEx(i, { duration_min: parseDuration(raw) });
-                    }}
-                  />
+                  <label className="text-xs text-muted-foreground">Duration</label>
+                  <div className="flex items-center gap-1 mt-1">
+                    {!exerciseShowHours[i] ? (
+                      <button
+                        type="button"
+                        onClick={() => setExerciseShowHours((p) => p.map((v, idx) => idx === i ? true : v))}
+                        className="text-xs text-muted-foreground hover:text-foreground px-1 py-0.5 border border-border rounded leading-none"
+                      >
+                        +h
+                      </button>
+                    ) : (
+                      <>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={exerciseHours[i] ?? ""}
+                          onChange={(e) => updateDurationSegment(i, "h", e.target.value)}
+                          className="w-9 text-center px-1"
+                        />
+                        <span className="text-xs text-muted-foreground">h</span>
+                      </>
+                    )}
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="00"
+                      value={exerciseMins[i] ?? ""}
+                      onChange={(e) => updateDurationSegment(i, "m", e.target.value)}
+                      className="w-11 text-center px-1"
+                    />
+                    <span className="text-xs text-muted-foreground">:</span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="00"
+                      value={exerciseSecs[i] ?? ""}
+                      onChange={(e) => updateDurationSegment(i, "s", e.target.value)}
+                      className="w-11 text-center px-1"
+                    />
+                    <span className="text-xs text-muted-foreground">m:s</span>
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">HR avg (bpm)</label>
