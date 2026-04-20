@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -110,12 +111,22 @@ export type InitialData = Partial<LogInput> & {
 };
 
 export function LogForm({ initial }: { initial: InitialData }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   // Core fields
   const [date, setDate] = useState(initial.date ?? today());
+
+  // Redirect to ?date=localDate on first load so the server fetches data
+  // for the client's local date rather than the DB server's UTC date.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get("date")) {
+      router.replace(`/log?date=${today()}`);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [sleepPaste, setSleepPaste] = useState("");
   const [sleepDuration, setSleepDuration] = useState(initial.sleep_duration?.toString() ?? "");
   const [bedTime, setBedTime] = useState(initial.bed_time ?? "");

@@ -4,7 +4,7 @@ import type { InitialData } from "./LogForm";
 
 export const dynamic = "force-dynamic";
 
-async function getTodayEntry(): Promise<InitialData> {
+async function getTodayEntry(date?: string): Promise<InitialData> {
   const [entry] = await sql`
     SELECT
       date::text AS date,
@@ -17,7 +17,7 @@ async function getTodayEntry(): Promise<InitialData> {
       TO_CHAR(bed_time, 'HH24:MI')  AS bed_time,
       TO_CHAR(wake_time, 'HH24:MI') AS wake_time
     FROM entries
-    WHERE date = CURRENT_DATE
+    WHERE date = COALESCE(${date ?? null}::date, CURRENT_DATE)
   `;
 
   const gi = await sql`
@@ -26,14 +26,14 @@ async function getTodayEntry(): Promise<InitialData> {
       bristol,
       CASE urgency WHEN 1 THEN 'low' WHEN 2 THEN 'moderate' WHEN 3 THEN 'high' ELSE '' END AS urgency
     FROM gi_events
-    WHERE date = CURRENT_DATE
+    WHERE date = COALESCE(${date ?? null}::date, CURRENT_DATE)
     ORDER BY event_time
   `;
 
   const ex = await sql`
     SELECT activity_type, duration_min, hr_avg, effort, distance_mi, notes
     FROM exercise_sessions
-    WHERE date = CURRENT_DATE
+    WHERE date = COALESCE(${date ?? null}::date, CURRENT_DATE)
     ORDER BY id
   `;
 
@@ -87,7 +87,12 @@ async function getTodayEntry(): Promise<InitialData> {
   };
 }
 
-export default async function LogPage() {
-  const initial = await getTodayEntry();
+export default async function LogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const { date } = await searchParams;
+  const initial = await getTodayEntry(date);
   return <LogForm initial={initial} />;
 }
