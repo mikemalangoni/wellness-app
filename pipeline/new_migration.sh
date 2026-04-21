@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Usage: ./pipeline/new_migration.sh <migration_name>
-# Example: ./pipeline/new_migration.sh add_water_ml_column
+# Example: ./pipeline/new_migration.sh add_weight_kg_column
 #
-# Creates the next numbered migration file in pipeline/migrations/ with a safe DDL template.
+# Creates the next migration file for today in pipeline/migrations/ with a safe DDL template.
+# Naming: YYYYMMDD_NN_<name>.sql  (NN increments if multiple migrations land on the same day)
 # After creating it, open the file and fill in your changes.
 # Convention: all DDL must be safe to re-run (use IF NOT EXISTS / IF EXISTS guards).
 
@@ -13,20 +14,29 @@ MIGRATIONS_DIR="$SCRIPT_DIR/migrations"
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <migration_name>"
-  echo "Example: $0 add_water_ml_column"
+  echo "Example: $0 add_weight_kg_column"
   exit 1
 fi
 
 NAME="$1"
+TODAY=$(date +%Y%m%d)
 
-# Find the highest existing sequence number and increment
-LAST=$(ls "$MIGRATIONS_DIR"/*.sql 2>/dev/null | grep -oE '^.*/[0-9]+' | grep -oE '[0-9]+$' | sort -n | tail -1)
-NEXT=$(printf "%03d" $(( ${LAST:-0} + 1 )))
+# Find the highest NN already used today, increment it
+LAST_NUM=$(ls "$MIGRATIONS_DIR"/${TODAY}_*.sql 2>/dev/null \
+  | sed -n "s|.*/[0-9]*_\([0-9][0-9]\)_.*|\1|p" \
+  | sort -n | tail -1 || true)
 
-FILENAME="$MIGRATIONS_DIR/${NEXT}_${NAME}.sql"
+if [[ -z "$LAST_NUM" ]]; then
+  NEXT_NUM=0
+else
+  NEXT_NUM=$(( 10#$LAST_NUM + 1 ))
+fi
+
+NEXT=$(printf "%02d" "$NEXT_NUM")
+FILENAME="$MIGRATIONS_DIR/${TODAY}_${NEXT}_${NAME}.sql"
 
 cat > "$FILENAME" <<EOF
--- Migration: ${NEXT}_${NAME}
+-- Migration: ${TODAY}_${NEXT}_${NAME}
 -- Safe to re-run: yes (ensure all DDL uses IF NOT EXISTS / IF EXISTS guards)
 -- Applied: $(date +%Y-%m-%d)
 -- Description: <describe the change>
@@ -38,6 +48,8 @@ cat > "$FILENAME" <<EOF
 --   DROP TABLE IF EXISTS <table>
 --   ALTER COLUMN <col> TYPE <newtype>  -- safe only for widening casts (e.g. INT → NUMERIC)
 --                                      -- add USING clause if casting between incompatible types
+--   COMMENT ON COLUMN <table>.<col> IS '<description>';
+--   COMMENT ON TABLE <table> IS '<description>';
 
 -- Write your changes below:
 
