@@ -233,7 +233,7 @@ export function LogForm({ initial }: { initial: InitialData }) {
   function addExercise() {
     setExercises((prev) => [
       ...prev,
-      { activity_type: "Run", duration_min: null, hr_avg: null, effort: null, distance_mi: null, notes: "" },
+      { activity_type: "Run", duration_min: null, hr_avg: null, effort: null, distance_mi: null, cadence_spm: null, elevation_gain_ft: null, notes: "" },
     ]);
     setExerciseHours((prev) => [...prev, ""]);
     setExerciseMins((prev) => [...prev, ""]);
@@ -706,6 +706,30 @@ export function LogForm({ initial }: { initial: InitialData }) {
                       placeholder="3.1"
                       value={ex.distance_mi ?? ""}
                       onChange={(e) => updateEx(i, { distance_mi: num(e.target.value) })}
+                    />
+                  </div>
+                )}
+                {ex.activity_type === "Run" && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Cadence (spm)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="170"
+                      value={ex.cadence_spm ?? ""}
+                      onChange={(e) => updateEx(i, { cadence_spm: int(e.target.value) })}
+                    />
+                  </div>
+                )}
+                {ex.activity_type === "Run" && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Elevation (ft)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="120"
+                      value={ex.elevation_gain_ft ?? ""}
+                      onChange={(e) => updateEx(i, { elevation_gain_ft: num(e.target.value) })}
                     />
                   </div>
                 )}
