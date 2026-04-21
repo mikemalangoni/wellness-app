@@ -308,16 +308,17 @@ Schema is version-controlled in two layers:
    - `DROP COLUMN IF EXISTS`
    - `CREATE TABLE IF NOT EXISTS` / `DROP TABLE IF EXISTS`
    - `ALTER COLUMN … TYPE` — only for safe widening casts; add `USING` otherwise
-3. Apply all migrations:
+3. Before merging, apply the branch's migrations to Neon:
    ```bash
    npm run db:migrate
    ```
+   This uses `git diff` to identify only the migration files added on the current branch relative to `main` and runs those — nothing else. Running it after merge (when on main) is safe and produces no output.
 4. Update the matching `pipeline/schema/tables/*.sql` file to reflect the new shape.
 
 #### Convention rules
-- Every migration must be safe to re-run (idempotent DDL — no bare `ADD COLUMN` or `CREATE TABLE`)
+- `npm run db:migrate` only runs files that are **new on the current branch** — it never re-runs migrations from prior branches
 - Never edit an already-applied migration; always add a new one
-- The sequence number is the ordering contract — do not rename old files
+- Run `db:migrate` before merging so the DB and merged code stay in sync
 
 ---
 
