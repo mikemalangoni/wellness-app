@@ -14,8 +14,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Load DATABASE_URL from the main worktree's .env.local if not already in env
 if [[ -z "${DATABASE_URL:-}" ]]; then
-  echo "Error: DATABASE_URL is not set."
+  MAIN_ROOT="$(git -C "$REPO_ROOT" worktree list --porcelain | awk '/^worktree/{print $2; exit}')"
+  ENV_FILE="$MAIN_ROOT/.env.local"
+  if [[ -f "$ENV_FILE" ]]; then
+    DATABASE_URL=$(grep -E '^DATABASE_URL=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')
+    export DATABASE_URL
+  fi
+fi
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "Error: DATABASE_URL is not set and could not be loaded from .env.local."
   exit 1
 fi
 
