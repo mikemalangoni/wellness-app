@@ -16,6 +16,8 @@ export type ExerciseInput = {
   hr_avg: number | null;
   effort: number | null;
   distance_mi: number | null;
+  cadence_spm: number | null;
+  elevation_gain_ft: number | null;
   notes: string;
 };
 
@@ -159,11 +161,12 @@ export async function saveLog(
     await sql`DELETE FROM exercise_sessions WHERE date = ${date}::date`;
     for (const ex of validEx) {
       await sql`
-        INSERT INTO exercise_sessions (date, activity_type, activity_raw, duration_min, hr_avg, effort, distance_mi, notes)
+        INSERT INTO exercise_sessions (date, activity_type, activity_raw, duration_min, hr_avg, effort, distance_mi, cadence_spm, elevation_gain_ft, notes)
         VALUES (
           ${date}::date,
           ${ex.activity_type}, ${ex.activity_type},
           ${ex.duration_min}, ${ex.hr_avg}, ${ex.effort}, ${ex.distance_mi},
+          ${ex.cadence_spm}, ${ex.elevation_gain_ft},
           ${ex.notes || null}
         )
       `;

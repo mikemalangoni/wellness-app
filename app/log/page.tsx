@@ -31,7 +31,7 @@ async function getTodayEntry(date?: string): Promise<InitialData> {
   `;
 
   const ex = await sql`
-    SELECT activity_type, duration_min, hr_avg, effort, distance_mi, notes
+    SELECT activity_type, duration_min, hr_avg, effort, distance_mi, cadence_spm, elevation_gain_ft, notes
     FROM exercise_sessions
     WHERE date = COALESCE(${date ?? null}::date, CURRENT_DATE)
     ORDER BY id
@@ -49,6 +49,8 @@ async function getTodayEntry(date?: string): Promise<InitialData> {
       hr_avg: e.hr_avg != null ? Number(e.hr_avg) : null,
       effort: e.effort != null ? Number(e.effort) : null,
       distance_mi: e.distance_mi != null ? Number(e.distance_mi) : null,
+      cadence_spm: e.cadence_spm != null ? Number(e.cadence_spm) : null,
+      elevation_gain_ft: e.elevation_gain_ft != null ? Number(e.elevation_gain_ft) : null,
       notes: e.notes ?? "",
     })),
   };
@@ -82,6 +84,8 @@ async function getTodayEntry(date?: string): Promise<InitialData> {
       hr_avg: e.hr_avg != null ? Number(e.hr_avg) : null,
       effort: e.effort != null ? Number(e.effort) : null,
       distance_mi: e.distance_mi != null ? Number(e.distance_mi) : null,
+      cadence_spm: e.cadence_spm != null ? Number(e.cadence_spm) : null,
+      elevation_gain_ft: e.elevation_gain_ft != null ? Number(e.elevation_gain_ft) : null,
       notes: e.notes ?? "",
     })),
   };
