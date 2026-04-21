@@ -1,5 +1,8 @@
--- Migration: add food/beverage logging + exercise notes + exercise_sets table
--- Run once against Neon: psql $DATABASE_URL -f pipeline/migrate.sql
+-- Migration: 002_food_columns_exercise_notes_sets
+-- Safe to re-run: yes (IF NOT EXISTS / idempotent TYPE casts throughout)
+-- Applied: 2024
+-- Description: Add food/beverage logging columns, exercise notes, fractional numeric
+--   types for duration/coffee, and the exercise_sets child table.
 
 ALTER TABLE entries
   ADD COLUMN IF NOT EXISTS coffee_count     INT,
@@ -9,14 +12,14 @@ ALTER TABLE entries
   ADD COLUMN IF NOT EXISTS snack_notes      TEXT,
   ADD COLUMN IF NOT EXISTS general_notes    TEXT;
 
--- Migration: allow fractional coffee counts (e.g. 0.5 cup)
+-- Allow fractional coffee counts (e.g. 0.5 cup)
 ALTER TABLE entries
   ALTER COLUMN coffee_count TYPE NUMERIC;
 
 ALTER TABLE exercise_sessions
   ADD COLUMN IF NOT EXISTS notes TEXT;
 
--- Migration: allow decimal duration_min (MM:SS parsing stores fractional minutes)
+-- Allow decimal duration_min (MM:SS parsing stores fractional minutes)
 ALTER TABLE exercise_sessions
   ALTER COLUMN duration_min TYPE NUMERIC;
 
