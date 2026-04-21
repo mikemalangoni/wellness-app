@@ -288,6 +288,47 @@ AI-generated weekly syntheses.
 ### Upsert Strategy
 The `saveLog` server action uses `INSERT ... ON CONFLICT (date) DO UPDATE SET` with `COALESCE(EXCLUDED.field, entries.field)` for all user-entered fields. This means a null submitted from an empty form field never overwrites an existing value — protecting data from partial saves or timezone-related empty loads. Computed aggregate fields (`bm_count`, `did_exercise`, etc.) always use `EXCLUDED` since they're freshly derived each save.
 
+### Database Change Process
+
+Schema is version-controlled in two layers:
+
+**`pipeline/schema/tables/`** — one `.sql` file per table, always reflecting the current state of that object. These are documentation, not run directly. Update the relevant file after every migration lands.
+
+**`pipeline/migrations/`** — numbered SQL files (`001_`, `002_`, …) that are the ordered change log. All migrations must be idempotent so they can be re-run safely.
+
+#### Making a change
+
+1. Scaffold a new migration file:
+   ```bash
+   npm run db:new <name>
+   # e.g. npm run db:new add_weight_kg_column
+   ```
+2. Fill in the generated file with your DDL. Follow the safe patterns in the template:
+   - `ADD COLUMN IF NOT EXISTS`
+   - `DROP COLUMN IF EXISTS`
+   - `CREATE TABLE IF NOT EXISTS` / `DROP TABLE IF EXISTS`
+   - `ALTER COLUMN … TYPE` — only for safe widening casts; add `USING` otherwise
+3. Before merging, apply the branch's migrations to Neon. `DATABASE_URL` must be set
+   in the environment — the script does not read `.env.local` automatically.
+   Run from the **feature branch worktree** (not the main repo directory), so that
+   `git diff main...HEAD` resolves correctly:
+   ```bash
+   # Confirm you're on the right branch first
+   git diff --name-only --diff-filter=A main...HEAD -- pipeline/migrations/
+
+   # Then apply — strip surrounding quotes that .env.local may add around the URL
+   DATABASE_URL="$(grep DATABASE_URL ~/Developer/personal/wellness-app/.env.local | cut -d= -f2- | tr -d '"')" npm run db:migrate
+   ```
+   This uses `git diff` to identify only the migration files added on the current
+   branch relative to `main` and runs those — nothing else. Running it after merge
+   (when on main) is safe and produces no output.
+4. Update the matching `pipeline/schema/tables/*.sql` file to reflect the new shape.
+
+#### Convention rules
+- `npm run db:migrate` only runs files that are **new on the current branch** — it never re-runs migrations from prior branches
+- Never edit an already-applied migration; always add a new one
+- Run `db:migrate` before merging so the DB and merged code stay in sync
+
 ---
 
 ## Data Pipeline
