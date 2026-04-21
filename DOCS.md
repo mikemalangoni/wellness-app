@@ -308,11 +308,20 @@ Schema is version-controlled in two layers:
    - `DROP COLUMN IF EXISTS`
    - `CREATE TABLE IF NOT EXISTS` / `DROP TABLE IF EXISTS`
    - `ALTER COLUMN … TYPE` — only for safe widening casts; add `USING` otherwise
-3. Before merging, apply the branch's migrations to Neon:
+3. Before merging, apply the branch's migrations to Neon. `DATABASE_URL` must be set
+   in the environment — the script does not read `.env.local` automatically.
+   Run from the **feature branch worktree** (not the main repo directory), so that
+   `git diff main...HEAD` resolves correctly:
    ```bash
-   npm run db:migrate
+   # Confirm you're on the right branch first
+   git diff --name-only --diff-filter=A main...HEAD -- pipeline/migrations/
+
+   # Then apply — strip surrounding quotes that .env.local may add around the URL
+   DATABASE_URL="$(grep DATABASE_URL ~/Developer/personal/wellness-app/.env.local | cut -d= -f2- | tr -d '"')" npm run db:migrate
    ```
-   This uses `git diff` to identify only the migration files added on the current branch relative to `main` and runs those — nothing else. Running it after merge (when on main) is safe and produces no output.
+   This uses `git diff` to identify only the migration files added on the current
+   branch relative to `main` and runs those — nothing else. Running it after merge
+   (when on main) is safe and produces no output.
 4. Update the matching `pipeline/schema/tables/*.sql` file to reflect the new shape.
 
 #### Convention rules
