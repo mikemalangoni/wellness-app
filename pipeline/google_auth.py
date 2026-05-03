@@ -1,10 +1,11 @@
-"""Google OAuth 2.0 authentication for the Spine Log pipeline."""
+"""Google authentication for the Spine Log pipeline."""
 
 import json
 import os
 from pathlib import Path
 
 from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -16,19 +17,16 @@ TOKEN_FILE = str(_BASE_DIR / "token.json")
 
 
 def get_credentials() -> Credentials:
-    """Return valid OAuth credentials, refreshing or re-authorising as needed.
+    """Return valid credentials.
 
-    In CI/Actions, credentials are loaded from the TOKEN_JSON environment variable.
-    Locally, falls back to token.json / credentials.json files.
+    CI: uses GOOGLE_SERVICE_ACCOUNT_JSON env var (service account key JSON).
+    Local: falls back to token.json / credentials.json (user OAuth flow).
     """
-    # ── CI / env var path: TOKEN_JSON environment variable ────────────────────
-    token_json_env = os.environ.get("TOKEN_JSON")
-    if token_json_env:
-        token_data = json.loads(token_json_env)
-        creds = Credentials.from_authorized_user_info(token_data, SCOPES)
-        if creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        return creds
+    # ── CI path: service account ──────────────────────────────────────────────
+    sa_json_env = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if sa_json_env:
+        info = json.loads(sa_json_env)
+        return service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
 
     # ── Local path: read/write token.json ─────────────────────────────────────
     creds: Credentials | None = None
